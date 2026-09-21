@@ -60,6 +60,8 @@ export type VolumeSettings = {
 };
 
 export type StopAllSettings = {
+  /** nom affiché sur la touche (permet plusieurs boutons d'arrêt distincts) */
+  label?: string;
   group?: string;
   mode?: "fade" | "cut";
   fade?: number;

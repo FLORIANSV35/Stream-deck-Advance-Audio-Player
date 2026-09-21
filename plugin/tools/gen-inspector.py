@@ -96,6 +96,7 @@ def volume():
 
 def stopall():
     body = '  <h2 class="section">Arrêt</h2>\n' + card("■", "Tout arrêter",
+        item("Nom affiché", '<sdpi-textfield setting="label" placeholder="Tout arrêter" maxlength="24"></sdpi-textfield>') +
         item("Groupe", '<sdpi-select setting="group" datasource="getGroupsStop" loading="Chargement…" default="*" placeholder="Tous les sons"></sdpi-select>') +
         item("Arrêt", '''<sdpi-select setting="mode" default="fade">
         <option value="fade">Avec fondu</option>

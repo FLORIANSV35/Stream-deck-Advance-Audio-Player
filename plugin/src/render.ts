@@ -32,8 +32,18 @@ const frame = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox
   ${body}
 </svg>`;
 
-const text = (x: number, y: number, size: number, fill: string, s: string, o: { weight?: number; mono?: boolean; spacing?: number } = {}) =>
-  `<text x="${x}" y="${y}" font-size="${size}" font-weight="${o.weight ?? 500}" fill="${fill}" text-anchor="middle" font-family="${o.mono ? MONO : FONT}" letter-spacing="${o.spacing ?? 0}">${esc(s)}</text>`;
+const text = (x: number, y: number, size: number, fill: string, s: string, o: { weight?: number; mono?: boolean; spacing?: number; fit?: number } = {}) =>
+  `<text x="${x}" y="${y}" font-size="${size}" font-weight="${o.weight ?? 500}" fill="${fill}" text-anchor="middle" font-family="${o.mono ? MONO : FONT}" letter-spacing="${o.spacing ?? 0}"${o.fit ? ` textLength="${o.fit}" lengthAdjust="spacingAndGlyphs"` : ""}>${esc(s)}</text>`;
+
+/** Nom en gros en haut de la touche : la taille s'adapte à la longueur, puis le texte est resserré (jusqu'à 30 %) avant d'être tronqué. */
+function title(label: string, y = 29, base = 25): string {
+  const W = 132, K = 0.56; // largeur dispo, largeur moyenne d'un caractère (en fraction de la taille)
+  let size = base;
+  while (size > 18 && label.length * K * size > W) size -= 1;
+  const shown = clip(label, Math.max(4, Math.floor((W * 1.3) / (K * size))));
+  const squeeze = shown.length * K * size > W;
+  return text(72, y, size, C.text, shown, { weight: 700, fit: squeeze ? W : undefined });
+}
 
 /** Anneau de progression centré en (72, 78). */
 const RING_R = 39;
@@ -69,7 +79,7 @@ export function playKey(v: PlayView): string {
     : active && v.loop ? text(72, 103, 11, C.muted, "BOUCLE", { weight: 700, spacing: 1.5 }) : "";
 
   return uri(frame(`
-    ${text(72, 24, 17, C.text, clip(v.label, 12), { weight: 600 })}
+    ${title(v.label)}
     ${ring(active ? (v.progress ?? 0) : 0, grad)}
     ${center}${hint}
     ${footer ? text(72, 137, 14, C.muted, clip(footer, 16), { weight: 500 }) : ""}
@@ -94,12 +104,20 @@ export function volumeKey(o: { target: string; icon: "up" | "down" | "mute" | "s
   `));
 }
 
-export function stopKey(label: string): string {
+export function stopKey(o: { label: string; group?: string; mode?: "fade" | "cut"; fade?: number }): string {
+  const cut = o.mode === "cut";
+  // coupure : anneau plein ; fondu : anneau qui s'efface
+  const rim = cut
+    ? `<circle cx="72" cy="80" r="${RING_R}" fill="none" stroke="url(#r)" stroke-width="7"/>`
+    : `<circle cx="72" cy="80" r="${RING_R}" fill="none" stroke="${C.faint}" stroke-width="7"/>
+       <circle cx="72" cy="80" r="${RING_R}" fill="none" stroke="url(#r)" stroke-width="7" stroke-linecap="round"
+         stroke-dasharray="${(0.62 * RING_C).toFixed(1)} ${RING_C.toFixed(1)}" transform="rotate(-90 72 80)" opacity="0.9"/>`;
+  const footer = [o.group, cut ? "coupure" : o.group ? "fondu" : `fondu ${o.fade ?? 1.5} s`].filter(Boolean).join("  ·  ");
   return uri(frame(`
-    ${text(72, 24, 16, C.muted, "ARRÊT", { weight: 600, spacing: 1.5 })}
-    <circle cx="72" cy="78" r="${RING_R}" fill="none" stroke="${C.faint}" stroke-width="7"/>
-    <rect x="56" y="62" width="32" height="32" rx="7" fill="url(#r)"/>
-    ${text(72, 137, 13, C.text, clip(label, 14), { weight: 500 })}
+    ${title(o.label)}
+    ${rim}
+    <rect x="57" y="65" width="30" height="30" rx="7" fill="url(#r)"/>
+    ${text(72, 138, 13, C.muted, clip(footer, 20), { weight: 500 })}
   `));
 }
 

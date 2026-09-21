@@ -6,9 +6,11 @@
   <rect width="144" height="144" fill="url(#bg)"/>
   <rect x="0.5" y="0.5" width="143" height="143" rx="0" fill="none" stroke="#ffffff" stroke-opacity="0.06"/>
   
-    <text x="72" y="24" font-size="16" font-weight="600" fill="#7d8494" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" letter-spacing="1.5">ARRÊT</text>
-    <circle cx="72" cy="78" r="39" fill="none" stroke="#2a2e37" stroke-width="7"/>
-    <rect x="56" y="62" width="32" height="32" rx="7" fill="url(#r)"/>
-    <text x="72" y="137" font-size="13" font-weight="500" fill="#eceef2" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" letter-spacing="0">Tout arrêter</text>
+    <text x="72" y="29" font-size="19" font-weight="700" fill="#eceef2" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" letter-spacing="0">Tout arrêter</text>
+    <circle cx="72" cy="80" r="39" fill="none" stroke="#2a2e37" stroke-width="7"/>
+       <circle cx="72" cy="80" r="39" fill="none" stroke="url(#r)" stroke-width="7" stroke-linecap="round"
+         stroke-dasharray="151.9 245.0" transform="rotate(-90 72 80)" opacity="0.9"/>
+    <rect x="57" y="65" width="30" height="30" rx="7" fill="url(#r)"/>
+    <text x="72" y="138" font-size="13" font-weight="500" fill="#7d8494" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" letter-spacing="0">fondu 1.5 s</text>
   
 </svg>

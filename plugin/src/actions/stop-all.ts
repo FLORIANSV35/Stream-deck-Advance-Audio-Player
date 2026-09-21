@@ -15,12 +15,17 @@ import type { StopAllSettings } from "../settings.js";
 
 @action({ UUID: "com.saap.audio.stopall" })
 export class StopAllAction extends SingletonAction<StopAllSettings> {
+  #image(s: StopAllSettings): string {
+    const mode = s.mode === "cut" ? "cut" : "fade";
+    return stopKey({ label: s.label?.trim() || "Tout arrêter", group: normGroup(s.group), mode, fade: s.fade ?? 1.5 });
+  }
+
   override onWillAppear(ev: WillAppearEvent<StopAllSettings>): void {
-    if (ev.action.isKey()) void ev.action.setImage(stopKey(normGroup(ev.payload.settings.group) || "Tout arrêter"));
+    if (ev.action.isKey()) void ev.action.setImage(this.#image(ev.payload.settings));
   }
 
   override onDidReceiveSettings(ev: DidReceiveSettingsEvent<StopAllSettings>): void {
-    if (ev.action.isKey()) void ev.action.setImage(stopKey(normGroup(ev.payload.settings.group) || "Tout arrêter"));
+    if (ev.action.isKey()) void ev.action.setImage(this.#image(ev.payload.settings));
   }
 
   override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, StopAllSettings>): Promise<void> {
