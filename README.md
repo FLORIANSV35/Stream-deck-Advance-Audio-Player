@@ -13,6 +13,12 @@ Prérequis : macOS 12 ou plus (Apple Silicon et Intel), Stream Deck 6.5 ou plus.
 > mais si macOS affiche « Apple n'a pas pu vérifier saap-engine », ouvre Réglages Système → Confidentialité et sécurité
 > et clique sur « Ouvrir quand même ».
 
+### Windows (bêta)
+Une version Windows 10/11 est disponible en **préversion** (voir les [releases](../../releases), cochez « Pre-release ») : le même fichier
+`com.saap.audio.streamDeckPlugin` s'installe sur Mac et sur Windows. Elle utilise WASAPI (pas ASIO) et n'a pas encore été validée sur du
+matériel réel : les retours sont bienvenus. Les journaux du plugin se trouvent dans
+`%appdata%\Elgato\StreamDeck\Plugins\com.saap.audio.sdPlugin\logs`.
+
 ## Fonctions
 - **Lire un son** (touche) : plusieurs fichiers en même temps (mono ou stéréo), fondu d'entrée / de sortie,
   cut d'entrée / de sortie (points de découpe dans le fichier), boucle, volume par fichier réglable en direct,
