@@ -66,7 +66,14 @@ jobs:
         with:
           name: engine-windows
           path: plugin/com.saap.audio.sdPlugin/bin
-      - name: Paquet .streamDeckPlugin (macOS + Windows)
+      # a release whose manifest does not target Windows (e.g. the stable macOS releases) must not ship the .exe
+      - name: Drop the Windows engine when the manifest does not target Windows
+        run: |
+          if ! grep -q '"Platform": "windows"' plugin/com.saap.audio.sdPlugin/manifest.json; then
+            rm -f plugin/com.saap.audio.sdPlugin/bin/saap-engine.exe
+            echo "manifest has no Windows target: engine .exe removed"
+          fi
+      - name: Package .streamDeckPlugin
         run: |
           chmod +x plugin/com.saap.audio.sdPlugin/bin/saap-engine
           ./package.sh --no-engine
