@@ -5,3 +5,4 @@ engine/.build/
 # binaires générés (voir README : ./engine/build.sh et npm run build)
 plugin/com.saap.audio.sdPlugin/bin/plugin.js
 plugin/com.saap.audio.sdPlugin/bin/saap-engine
+dist/

@@ -2,6 +2,17 @@
 
 Lecteur audio avancé pour Stream Deck.
 
+## Installation (utilisateurs)
+1. Télécharge **`com.saap.audio.streamDeckPlugin`** depuis la [dernière release](../../releases/latest).
+2. Double-clique dessus : l'application Stream Deck l'installe.
+3. Cherche la catégorie **SAAP Audio** dans la liste des actions.
+
+Prérequis : macOS 12 ou plus (Apple Silicon et Intel), Stream Deck 6.5 ou plus.
+
+> Le moteur audio n'est pas notarisé par Apple. Le plugin retire lui-même l'étiquette de quarantaine au démarrage,
+> mais si macOS affiche « Apple n'a pas pu vérifier saap-engine », ouvre Réglages Système → Confidentialité et sécurité
+> et clique sur « Ouvrir quand même ».
+
 ## Fonctions
 - **Lire un son** (touche) : plusieurs fichiers en même temps (mono ou stéréo), fondu d'entrée / de sortie,
   cut d'entrée / de sortie (points de découpe dans le fichier), boucle, volume par fichier réglable en direct,
@@ -20,6 +31,11 @@ Lecteur audio avancé pour Stream Deck.
 ```bash
 ./engine/build.sh                 # compile bin/saap-engine
 cd plugin && npm install && npm run build   # bundle bin/plugin.js
+```
+
+## Créer le paquet à distribuer
+```bash
+./package.sh    # → dist/com.saap.audio.streamDeckPlugin
 ```
 
 ## Installation en développement

@@ -1,4 +1,5 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { chmodSync } from "node:fs";
 import { EventEmitter } from "node:events";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -39,6 +40,15 @@ type EngineEvents = {
 
 const ENGINE_PATH = fileURLToPath(new URL("./saap-engine", import.meta.url));
 
+/**
+ * Prépare le binaire du moteur avant de le lancer. Un plugin téléchargé peut arriver sans droit d'exécution,
+ * et avec l'étiquette de quarantaine de macOS, qui déclenche « Apple n'a pas pu vérifier… » au premier lancement.
+ */
+function prepareBinary(): void {
+  try { chmodSync(ENGINE_PATH, 0o755); } catch { /* déjà correct, ou lecture seule */ }
+  try { execFileSync("/usr/bin/xattr", ["-d", "com.apple.quarantine", ENGINE_PATH], { stdio: "ignore" }); } catch { /* pas de quarantaine */ }
+}
+
 /** Client du moteur audio natif (processus enfant, JSON ligne par ligne). */
 class Engine extends EventEmitter<EngineEvents> {
   #proc?: ChildProcess;
@@ -48,6 +58,7 @@ class Engine extends EventEmitter<EngineEvents> {
   #peakWaiters = new Map<number, (r: PeaksResult | undefined) => void>();
 
   start(): void {
+    prepareBinary();
     const proc = spawn(ENGINE_PATH, [], { stdio: ["pipe", "pipe", "inherit"] });
     this.#proc = proc;
     createInterface({ input: proc.stdout! }).on("line", (line) => this.#onLine(line));
