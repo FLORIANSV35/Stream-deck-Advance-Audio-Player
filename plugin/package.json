@@ -1,0 +1,23 @@
+{
+  "name": "saap-audio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c -w"
+  },
+  "dependencies": {
+    "@elgato/streamdeck": "^2.1.2"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.3",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-terser": "^1.0.0",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "@types/node": "^26.6.2",
+    "rollup": "^4.63.4",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3"
+  }
+}

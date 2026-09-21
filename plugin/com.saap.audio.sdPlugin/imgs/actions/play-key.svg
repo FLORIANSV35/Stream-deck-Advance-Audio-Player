@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 144">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d2027"/><stop offset="1" stop-color="#0d0f13"/></linearGradient>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#22c55e"/></linearGradient><linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fde68a"/><stop offset="1" stop-color="#f59e0b"/></linearGradient><linearGradient id="r" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fca5a5"/><stop offset="1" stop-color="#ef4444"/></linearGradient><linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#93c5fd"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
+  </defs>
+  <rect width="144" height="144" fill="url(#bg)"/>
+  <rect x="0.5" y="0.5" width="143" height="143" rx="0" fill="none" stroke="#ffffff" stroke-opacity="0.06"/>
+  
+    <text x="72" y="24" font-size="17" font-weight="600" fill="#eceef2" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" letter-spacing="0">Lire un son</text>
+    
+  <circle cx="72" cy="78" r="39" fill="none" stroke="#2a2e37" stroke-width="7"/>
+  
+    <path d="M62 62 L62 94 L90 78 Z" fill="url(#g)" stroke="url(#g)" stroke-width="5" stroke-linejoin="round"/>
+    
+  
+</svg>

@@ -1,0 +1,7 @@
+.DS_Store
+node_modules/
+logs/
+engine/.build/
+# binaires générés (voir README : ./engine/build.sh et npm run build)
+plugin/com.saap.audio.sdPlugin/bin/plugin.js
+plugin/com.saap.audio.sdPlugin/bin/saap-engine

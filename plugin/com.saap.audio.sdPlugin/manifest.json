@@ -1,0 +1,110 @@
+{
+  "$schema": "https://schemas.elgato.com/streamdeck/plugins/manifest.json",
+  "SDKVersion": 2,
+  "UUID": "com.saap.audio",
+  "Name": "SAAP Audio",
+  "Version": "0.1.0.0",
+  "Author": "SAAP",
+  "Description": "Lecteur audio avancé : plusieurs lectures simultanées, fondus, découpe, volume live, choix de l'interface et des sorties par fichier.",
+  "Category": "SAAP Audio",
+  "CategoryIcon": "imgs/category",
+  "Icon": "imgs/plugin",
+  "CodePath": "bin/plugin.js",
+  "OS": [
+    {
+      "Platform": "mac",
+      "MinimumVersion": "12"
+    }
+  ],
+  "Nodejs": {
+    "Version": "20",
+    "Debug": "enabled"
+  },
+  "Software": {
+    "MinimumVersion": "6.5"
+  },
+  "Actions": [
+    {
+      "UUID": "com.saap.audio.play",
+      "Name": "Lire un son",
+      "Tooltip": "Lit un fichier audio (fondus, découpe, sortie au choix, volume live).",
+      "Icon": "imgs/actions/play",
+      "Controllers": [
+        "Keypad"
+      ],
+      "PropertyInspectorPath": "ui/play.html",
+      "States": [
+        {
+          "Image": "imgs/actions/play-key",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
+      "UUID": "com.saap.audio.volume",
+      "Name": "Volume",
+      "Tooltip": "Règle le volume général ou d'un groupe de sons, en direct.",
+      "Icon": "imgs/actions/volume",
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
+      "PropertyInspectorPath": "ui/volume.html",
+      "States": [
+        {
+          "Image": "imgs/actions/volume-key",
+          "ShowTitle": false
+        }
+      ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Volume",
+          "Push": "Mute",
+          "Touch": "Mute"
+        }
+      }
+    },
+    {
+      "UUID": "com.saap.audio.seek",
+      "Name": "Avancer / reculer",
+      "Tooltip": "Avance ou recule dans les lectures en cours (touche : saut fixe, cadran : défilement).",
+      "Icon": "imgs/actions/seek",
+      "Controllers": [
+        "Keypad",
+        "Encoder"
+      ],
+      "PropertyInspectorPath": "ui/seek.html",
+      "States": [
+        {
+          "Image": "imgs/actions/seek-key",
+          "ShowTitle": false
+        }
+      ],
+      "Encoder": {
+        "layout": "$B1",
+        "TriggerDescription": {
+          "Rotate": "Avancer / reculer",
+          "Push": "Pause / reprise",
+          "Touch": "Pause / reprise"
+        }
+      }
+    },
+    {
+      "UUID": "com.saap.audio.stopall",
+      "Name": "Tout arrêter",
+      "Tooltip": "Arrête toutes les lectures, ou celles d'un groupe.",
+      "Icon": "imgs/actions/stop",
+      "Controllers": [
+        "Keypad"
+      ],
+      "PropertyInspectorPath": "ui/stopall.html",
+      "States": [
+        {
+          "Image": "imgs/actions/stop-key",
+          "ShowTitle": false
+        }
+      ]
+    }
+  ]
+}

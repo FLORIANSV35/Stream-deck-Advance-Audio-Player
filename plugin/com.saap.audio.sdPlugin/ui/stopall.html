@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Tout arrêter</title>
+  <script src="sdpi-components.js"></script>
+  <link rel="stylesheet" href="saap.css" />
+</head>
+<body>
+  <header class="hero"><svg viewBox="0 0 36 36"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#22c55e"/></linearGradient></defs>
+<rect width="36" height="36" rx="9" fill="#1d2027"/><g fill="url(#lg)"><rect x="7" y="15" width="3" height="6" rx="1.5"/><rect x="12" y="10" width="3" height="16" rx="1.5"/><rect x="17" y="6" width="3" height="24" rx="1.5"/><rect x="22" y="12" width="3" height="12" rx="1.5"/><rect x="27" y="16" width="3" height="4" rx="1.5"/></g></svg><div><h1>Tout arrêter</h1><p>Tous les sons, ou un groupe</p></div></header>
+  <h2 class="section">Arrêt</h2>
+  <details class="card plain" open>
+    <summary><span class="badge">■</span><span class="meta"><span class="title">Tout arrêter</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Groupe"><sdpi-select setting="group" datasource="getGroupsStop" loading="Chargement…" default="*" placeholder="Tous les sons"></sdpi-select></sdpi-item>
+    <sdpi-item label="Arrêt"><sdpi-select setting="mode" default="fade">
+        <option value="fade">Avec fondu</option>
+        <option value="cut">Coupure immédiate</option>
+      </sdpi-select></sdpi-item>
+    <sdpi-item label="Durée du fondu (s)"><sdpi-range setting="fade" min="0.1" max="10" step="0.1" default="1.5" showlabels></sdpi-range></sdpi-item>
+    </div>
+  </details>
+
+</body>
+</html>
