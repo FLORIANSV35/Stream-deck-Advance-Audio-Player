@@ -10,6 +10,8 @@ VERSION=$(python3 -c "import json;print(json.load(open('plugin/com.saap.audio.sd
 mkdir -p dist
 OUT="dist/com.saap.audio.streamDeckPlugin"
 rm -f "$OUT"
+# ship the license and third-party notices inside the package
+cp LICENSE THIRD-PARTY-NOTICES.md plugin/com.saap.audio.sdPlugin/
 # a .streamDeckPlugin is a zip containing the .sdPlugin folder (without logs or system files)
 (cd plugin && zip -r -X -q "../$OUT" com.saap.audio.sdPlugin -x "*/logs/*" "*.DS_Store")
 echo "OK -> $OUT (version $VERSION, $(du -h "$OUT" | cut -f1))"

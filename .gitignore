@@ -8,3 +8,6 @@ plugin/com.saap.audio.sdPlugin/bin/saap-engine
 plugin/com.saap.audio.sdPlugin/bin/saap-engine.exe
 engine-rs/target/
 dist/
+# copies made by package.sh
+plugin/com.saap.audio.sdPlugin/LICENSE
+plugin/com.saap.audio.sdPlugin/THIRD-PARTY-NOTICES.md
