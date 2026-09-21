@@ -77,3 +77,8 @@ ln -s "$PWD/plugin/com.saap.audio.sdPlugin" "$HOME/Library/Application Support/c
 ```
 
 Then quit and restart the Stream Deck app. Logs are in `com.saap.audio.sdPlugin/logs/`.
+
+## License
+
+[MIT](LICENSE) © 2026 Florian Sauvé. Third-party software included in or used to build the plugin is listed, with
+its license, in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
