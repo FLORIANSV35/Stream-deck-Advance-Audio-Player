@@ -1,0 +1,72 @@
+name: Build & Release
+
+on:
+  push:
+    tags: ["v*"]
+    branches: ["windows-support"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  engine-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./engine/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-mac
+          path: plugin/com.saap.audio.sdPlugin/bin/saap-engine
+
+  engine-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release --manifest-path engine-rs/Cargo.toml
+      # protocole : le moteur doit répondre « ready » puis quitter proprement
+      - name: Test de démarrage
+        shell: pwsh
+        run: |
+          $out = '{"cmd":"quit"}' | & engine-rs/target/release/saap-engine.exe
+          Write-Host $out
+          if ($out -notmatch '"evt":"ready"') { throw "le moteur n'a pas répondu ready" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: engine-windows
+          path: engine-rs/target/release/saap-engine.exe
+
+  package:
+    needs: [engine-mac, engine-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/download-artifact@v4
+        with:
+          name: engine-mac
+          path: plugin/com.saap.audio.sdPlugin/bin
+      - uses: actions/download-artifact@v4
+        with:
+          name: engine-windows
+          path: plugin/com.saap.audio.sdPlugin/bin
+      - name: Paquet .streamDeckPlugin (macOS + Windows)
+        run: |
+          chmod +x plugin/com.saap.audio.sdPlugin/bin/saap-engine
+          ./package.sh --no-engine
+          unzip -l dist/com.saap.audio.streamDeckPlugin | grep -E "saap-engine|plugin.js"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: com.saap.audio.streamDeckPlugin
+          path: dist/com.saap.audio.streamDeckPlugin
+      - name: Joint à la release (sur un tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes
+          gh release upload "$GITHUB_REF_NAME" dist/com.saap.audio.streamDeckPlugin --clobber

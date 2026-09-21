@@ -3,7 +3,7 @@
   "SDKVersion": 2,
   "UUID": "com.saap.audio",
   "Name": "SAAP Audio",
-  "Version": "0.1.0.0",
+  "Version": "0.2.0.0",
   "Author": "SAAP",
   "Description": "Lecteur audio avancé : plusieurs lectures simultanées, fondus, découpe, volume live, choix de l'interface et des sorties par fichier.",
   "Category": "SAAP Audio",
@@ -14,6 +14,10 @@
     {
       "Platform": "mac",
       "MinimumVersion": "12"
+    },
+    {
+      "Platform": "windows",
+      "MinimumVersion": "10"
     }
   ],
   "Nodejs": {

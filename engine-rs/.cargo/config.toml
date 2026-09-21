@@ -1,0 +1,3 @@
+# Windows : runtime C lié statiquement, pour ne pas exiger le « Visual C++ Redistributable » chez l'utilisateur
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

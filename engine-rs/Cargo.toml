@@ -1,0 +1,16 @@
+[package]
+name = "saap-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Moteur audio du plugin Stream Deck SAAP (Windows ; compile aussi sur macOS pour les tests)"
+
+[dependencies]
+cpal = "0.15"
+serde_json = "1"
+symphonia = { version = "0.5", features = ["all"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

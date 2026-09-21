@@ -19,11 +19,21 @@ import { playbacks, gainFor, inGroup, type Playback } from "../registry.js";
 import { fmtTime, playKey, type PlayView } from "../render.js";
 import { MAX_TRACKS, seconds, trackSettings, type PlaySettings } from "../settings.js";
 
-/** L'inspecteur renvoie un chemin parfois sans "/" initial ou préfixé par "C:\fakepath\". */
+/**
+ * Chemin renvoyé par le sélecteur de fichier de l'inspecteur : selon le système, il peut être préfixé par
+ * "C:\fakepath\", encodé, sans "/" initial (macOS) ou avec des "/" au lieu de "\" (Windows). On essaie les variantes.
+ */
 function resolvePath(p: string | undefined): string | undefined {
   if (!p) return undefined;
-  const clean = p.replace(/^C:\\fakepath\\/i, "");
-  return [clean, "/" + clean].find((c) => existsSync(c));
+  const stripped = p.replace(/^C:\\fakepath\\/i, "");
+  let decoded = stripped;
+  try { decoded = decodeURIComponent(stripped); } catch { /* pas encodé */ }
+  const candidates = new Set<string>([p, stripped, decoded]);
+  for (const c of [...candidates]) {
+    candidates.add("/" + c);
+    if (process.platform === "win32") candidates.add(c.replace(/\//g, "\\"));
+  }
+  return [...candidates].find((c) => existsSync(c));
 }
 
 /** Les pistes d'une touche ont l'identifiant "<contexte>#<n>" côté moteur. */
@@ -154,6 +164,13 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     if (tracks.length === 0 || tracks.some((x) => !x.file)) {
       void key.showAlert();
       streamDeck.logger.warn(`Fichier introuvable ou aucun fichier choisi (touche ${ctx})`);
+      for (const { n, t, file } of tracks) {
+        if (file) continue;
+        const raw = String(t.file);
+        // sur Windows, le sélecteur peut ne renvoyer que le nom du fichier, sans son dossier
+        const hint = !/[\\/]/.test(raw.replace(/^C:\\fakepath\\/i, "")) ? " (nom seul, sans dossier : chemin complet non fourni par le sélecteur)" : "";
+        streamDeck.logger.warn(`  piste ${n} : valeur reçue ${JSON.stringify(raw)}${hint}`);
+      }
       if (tracks.length === 0) return;
     }
     if (s.stopOthers) {
