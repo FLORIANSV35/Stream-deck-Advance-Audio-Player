@@ -1,5 +1,5 @@
 #!/bin/bash
-# Compile le moteur audio (universel arm64 + x86_64) vers plugin/com.saap.audio.sdPlugin/bin/saap-engine
+# Builds the audio engine (universal arm64 + x86_64) into plugin/com.saap.audio.sdPlugin/bin/saap-engine
 set -e
 cd "$(dirname "$0")"
 OUT="../plugin/com.saap.audio.sdPlugin/bin"

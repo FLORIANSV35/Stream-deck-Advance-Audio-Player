@@ -6,7 +6,7 @@
   <rect width="144" height="144" fill="url(#bg)"/>
   <rect x="0.5" y="0.5" width="143" height="143" rx="0" fill="none" stroke="#ffffff" stroke-opacity="0.06"/>
   
-    <text x="72" y="24" font-size="16" font-weight="600" fill="#7d8494" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" letter-spacing="1.2">TOUS LES SONS</text>
+    <text x="72" y="24" font-size="16" font-weight="600" fill="#7d8494" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" letter-spacing="1.2">ALL SOUNDS</text>
     <path d="M52 58 L68 76 L52 94" fill="none" stroke="url(#b)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/><path d="M78 58 L94 76 L78 94" fill="none" stroke="url(#b)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
     <text x="72" y="124" font-size="26" font-weight="700" fill="#eceef2" text-anchor="middle" font-family="'SF Mono', Menlo, monospace" letter-spacing="-0.5">+10 s</text>
   

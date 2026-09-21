@@ -1,4 +1,4 @@
-// Forme d'onde avec poignées de découpe (cut d'entrée / cut de sortie) pour chaque piste.
+// Waveform with trim handles (trim in / trim out) for each track.
 (() => {
   const { streamDeckClient: sd, useSettings } = SDPIComponents;
   const key = (name, n) => (n === 1 ? name : name + n);
@@ -7,7 +7,7 @@
     const m = Math.floor(s / 60);
     return `${m}:${(s - m * 60).toFixed(2).padStart(5, "0")}`;
   };
-  const GRIP = 12; // zone de saisie d'une poignée, en px
+  const GRIP = 12; // grab zone of a handle, in px
 
   document.querySelectorAll(".wave").forEach(init);
 
@@ -17,15 +17,15 @@
     const canvas = root.querySelector("canvas");
     const info = root.querySelector(".wave-info");
     const ctx = canvas.getContext("2d");
-    // Piste esclave avec cut liés : la découpe affichée est celle de la piste 1, non modifiable ici.
+    // Slave track with linked trim: the trim shown is track 1's, not editable here.
     const st = {
-      file: "", duration: 0, peaks: null, msg: "Choisis un fichier",
+      file: "", duration: 0, peaks: null, msg: "Choose a file",
       ownIn: 0, ownOut: 0, mIn: 0, mOut: 0, linked: false,
       get tin() { return this.linked ? this.mIn : this.ownIn; }, set tin(v) { this.ownIn = v; },
       get tout() { return this.linked ? this.mOut : this.ownOut; }, set tout(v) { this.ownOut = v; },
     };
 
-    // pas d'anti-rebond : on enregistre au relâchement de la poignée
+    // no debounce: settings are saved when the handle is released
     const [getFile] = useSettings(key("file", n), (v) => setFile(v), 0);
     const [getIn, setIn] = useSettings(key("trimIn", n), (v) => { st.ownIn = num(v); draw(); }, 0);
     const [getOut, setOut] = useSettings(key("trimOut", n), (v) => { st.ownOut = num(v); draw(); }, 0);
@@ -49,7 +49,7 @@
       f = f || "";
       if (f === st.file && (st.peaks || !f)) return;
       st.file = f; st.peaks = null; st.duration = 0;
-      st.msg = f ? "Analyse du fichier…" : "Choisis un fichier";
+      st.msg = f ? "Analyzing file…" : "Choose a file";
       if (f) sd.send("sendToPlugin", { event: "getPeaks", file: f, track: n });
       draw();
     }
@@ -61,7 +61,7 @@
     function draw() {
       const dpr = window.devicePixelRatio || 1;
       const w = canvas.clientWidth, h = canvas.clientHeight;
-      if (!w) return; // section repliée
+      if (!w) return; // collapsed section
       canvas.width = w * dpr; canvas.height = h * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
@@ -82,7 +82,7 @@
         ctx.roundRect(x, (h - amp) / 2, Math.max(1.2, bw - 0.6), amp, 1);
         ctx.fill();
       }
-      // zones coupées : voile sombre ; poignées : trait + grip arrondi
+      // trimmed zones: dark veil; handles: line + rounded grip
       ctx.fillStyle = "rgba(15,17,21,0.55)";
       ctx.fillRect(0, 0, a, h); ctx.fillRect(b, 0, w - b, h);
       for (const x of [a, b]) {
@@ -91,7 +91,7 @@
         ctx.beginPath(); ctx.roundRect(x - 5, h / 2 - 12, 10, 24, 4); ctx.fill();
         ctx.fillStyle = "#052e1d"; ctx.fillRect(x - 1.5, h / 2 - 6, 1, 12); ctx.fillRect(x + 0.5, h / 2 - 6, 1, 12);
       }
-      info.textContent = (st.linked ? "Lié à la piste 1 · " : "") + `Début ${fmt(st.tin)} · Fin ${fmt(outTime())} · Durée lue ${fmt(outTime() - st.tin)} / ${fmt(st.duration)}`;
+      info.textContent = (st.linked ? "Linked to track 1 · " : "") + `Start ${fmt(st.tin)} · End ${fmt(outTime())} · Length ${fmt(outTime() - st.tin)} / ${fmt(st.duration)}`;
     }
 
     let drag = null;
@@ -101,13 +101,13 @@
       const x = posX(e);
       const dIn = Math.abs(x - xOf(st.tin)), dOut = Math.abs(x - xOf(outTime()));
       drag = dIn <= dOut ? "in" : "out";
-      if (Math.min(dIn, dOut) > GRIP) move(x); // clic loin d'une poignée : déplace la plus proche
+      if (Math.min(dIn, dOut) > GRIP) move(x); // click away from a handle: moves the nearest one
       canvas.setPointerCapture(e.pointerId);
     });
     canvas.addEventListener("pointermove", (e) => { if (drag) move(posX(e)); });
     canvas.addEventListener("pointerup", () => { if (drag) { drag = null; commit(); } });
     canvas.addEventListener("dblclick", () => {
-      if (st.linked) return; st.tin = 0; st.tout = 0; draw(); commit(); }); // double-clic : tout le fichier
+      if (st.linked) return; st.tin = 0; st.tout = 0; draw(); commit(); }); // double-click: whole file
 
     function move(x) {
       const t = tOf(x), min = 0.05;
@@ -121,7 +121,7 @@
       const outV = !st.tout || st.tout > st.duration - 0.01 ? "" : st.tout.toFixed(2);
       if (!outV) st.tout = 0;
       setIn(inV); setOut(outV);
-      // met aussi à jour les champs texte affichés dans le panneau
+      // also updates the text fields shown in the panel
       for (const [name, v] of [["trimIn", inV], ["trimOut", outV]]) {
         const el = document.querySelector(`sdpi-textfield[setting="${key(name, n)}"]`);
         if (el) el.value = v;

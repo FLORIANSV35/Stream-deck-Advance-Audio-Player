@@ -1,4 +1,4 @@
-//! Décodage des fichiers en mémoire (avec cache) et calcul de la forme d'onde.
+//! In-memory decoding of audio files (with a cache) and waveform computation.
 
 use std::fs::File;
 use std::path::Path;
@@ -13,7 +13,7 @@ use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::MetadataOptions;
 use symphonia::core::probe::Hint;
 
-/// Fichier décodé : échantillons flottants entrelacés.
+/// A decoded file: interleaved float samples.
 pub struct AudioData {
     pub samples: Vec<f32>,
     pub channels: usize,
@@ -23,20 +23,20 @@ pub struct AudioData {
 
 type CacheEntry = (String, SystemTime, Arc<AudioData>);
 
-/// Charge un fichier (décodé une seule fois tant qu'il ne change pas ; 12 fichiers gardés en mémoire).
+/// Loads a file (decoded only once while it does not change; 12 files are kept in memory).
 pub fn load(path: &str) -> Result<Arc<AudioData>, String> {
     static CACHE: OnceLock<Mutex<Vec<CacheEntry>>> = OnceLock::new();
     let cache = CACHE.get_or_init(|| Mutex::new(Vec::new()));
     let mtime = std::fs::metadata(path)
         .and_then(|m| m.modified())
-        .map_err(|_| format!("Fichier introuvable : {path}"))?;
+        .map_err(|_| format!("File not found: {path}"))?;
 
     {
         let mut c = cache.lock().unwrap();
         if let Some(i) = c.iter().position(|e| e.0 == path && e.1 == mtime) {
             let entry = c.remove(i);
             let data = entry.2.clone();
-            c.push(entry); // le plus récemment utilisé en dernier
+            c.push(entry); // most recently used last
             return Ok(data);
         }
     }
@@ -51,7 +51,7 @@ pub fn load(path: &str) -> Result<Arc<AudioData>, String> {
 }
 
 fn decode(path: &str) -> Result<AudioData, String> {
-    let bad = || format!("Fichier illisible : {path}");
+    let bad = || format!("Unreadable file: {path}");
     let file = File::open(path).map_err(|_| bad())?;
     let stream = MediaSourceStream::new(Box::new(file), Default::default());
     let mut hint = Hint::new();
@@ -75,7 +75,7 @@ fn decode(path: &str) -> Result<AudioData, String> {
     loop {
         let packet = match format.next_packet() {
             Ok(p) => p,
-            Err(Error::IoError(_)) | Err(Error::ResetRequired) => break, // fin de fichier
+            Err(Error::IoError(_)) | Err(Error::ResetRequired) => break, // end of file
             Err(_) => break,
         };
         if packet.track_id() != track_id {
@@ -95,7 +95,7 @@ fn decode(path: &str) -> Result<AudioData, String> {
                 b.copy_interleaved_ref(decoded);
                 samples.extend_from_slice(b.samples());
             }
-            Err(Error::DecodeError(_)) => continue, // paquet abîmé : on saute
+            Err(Error::DecodeError(_)) => continue, // damaged packet: skip it
             Err(_) => break,
         }
     }
@@ -107,7 +107,7 @@ fn decode(path: &str) -> Result<AudioData, String> {
     Ok(AudioData { samples, channels, rate, frames })
 }
 
-/// Crête (valeur absolue max, tous canaux) de chacune des `n` tranches du fichier.
+/// Peak (max absolute value, all channels) of each of the `n` slices of the file.
 pub fn peaks(d: &AudioData, n: usize) -> Vec<f32> {
     let n = n.clamp(10, 4000);
     let mut out = vec![0f32; n];

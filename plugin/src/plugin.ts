@@ -17,5 +17,5 @@ streamDeck.actions.registerAction(new SeekAction());
 streamDeck.actions.registerAction(new StopAllAction());
 
 await streamDeck.connect();
-// les réglages globaux ne sont lisibles qu'une fois connecté
+// global settings can only be read once connected
 await mixer.load();

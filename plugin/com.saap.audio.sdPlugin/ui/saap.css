@@ -1,4 +1,4 @@
-/* Habillage commun des panneaux de réglage. Les variables --sdpi surchargent la palette de sdpi-components. */
+/* Shared look of the settings panels. The variables below override the sdpi-components palette. */
 html:root {
   --window-bg-color: #14161a !important;
   --font-color: #a3a9b7 !important;
@@ -54,7 +54,7 @@ sdpi-note { display: block; max-width: 100%; margin: 10px 14px 0; padding: 9px 1
 body { overflow-x: hidden; }
 .card { max-width: calc(100% - 20px); }
 
-/* Sélecteur de sorties à cases à cocher */
+/* Output picker with checkboxes */
 .outpick { width: 100%; }
 .outpick .btn { display: flex; align-items: center; gap: 8px; width: 100%; height: var(--input-height); padding: 0 10px; border: 0; border-radius: 3px;
   background: var(--input-bg-color); color: var(--input-font-color); font: inherit; text-align: left; cursor: pointer; }

@@ -1,28 +1,28 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Avancer / reculer</title>
+  <title>Skip forward / back</title>
   <script src="sdpi-components.js"></script>
   <link rel="stylesheet" href="saap.css" />
 </head>
 <body>
   <header class="hero"><svg viewBox="0 0 36 36"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#22c55e"/></linearGradient></defs>
-<rect width="36" height="36" rx="9" fill="#1d2027"/><g fill="url(#lg)"><rect x="7" y="15" width="3" height="6" rx="1.5"/><rect x="12" y="10" width="3" height="16" rx="1.5"/><rect x="17" y="6" width="3" height="24" rx="1.5"/><rect x="22" y="12" width="3" height="12" rx="1.5"/><rect x="27" y="16" width="3" height="4" rx="1.5"/></g></svg><div><h1>Avancer / reculer</h1><p>Se déplacer dans la lecture</p></div></header>
-  <h2 class="section">Déplacement</h2>
+<rect width="36" height="36" rx="9" fill="#1d2027"/><g fill="url(#lg)"><rect x="7" y="15" width="3" height="6" rx="1.5"/><rect x="12" y="10" width="3" height="16" rx="1.5"/><rect x="17" y="6" width="3" height="24" rx="1.5"/><rect x="22" y="12" width="3" height="12" rx="1.5"/><rect x="27" y="16" width="3" height="4" rx="1.5"/></g></svg><div><h1>Skip forward / back</h1><p>Move within the playback</p></div></header>
+  <h2 class="section">Seeking</h2>
   <details class="card plain" open>
-    <summary><span class="badge">»</span><span class="meta"><span class="title">Avancer / reculer</span></span></summary>
+    <summary><span class="badge">»</span><span class="meta"><span class="title">Skip forward / back</span></span></summary>
     <div class="body">
-    <sdpi-item label="Sons concernés"><sdpi-select setting="group" datasource="getGroupsStop" loading="Chargement…" default="*" placeholder="Tous les sons"></sdpi-select></sdpi-item>
-    <sdpi-item label="Touche : sens"><sdpi-select setting="direction" default="forward">
-        <option value="forward">Avancer</option>
-        <option value="back">Reculer</option>
+    <sdpi-item label="Sounds affected"><sdpi-select setting="group" datasource="getGroupsStop" loading="Loading…" default="*" placeholder="All sounds"></sdpi-select></sdpi-item>
+    <sdpi-item label="Key: direction"><sdpi-select setting="direction" default="forward">
+        <option value="forward">Forward</option>
+        <option value="back">Back</option>
       </sdpi-select></sdpi-item>
-    <sdpi-item label="Touche : saut (s)"><sdpi-range setting="seconds" min="1" max="60" step="1" default="10" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Cadran : saut par cran (s)"><sdpi-range setting="dialStep" min="1" max="30" step="1" default="2" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Key: skip (s)"><sdpi-range setting="seconds" min="1" max="60" step="1" default="10" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Dial: skip per notch (s)"><sdpi-range setting="dialStep" min="1" max="30" step="1" default="2" showlabels></sdpi-range></sdpi-item>
     </div>
   </details>
-  <sdpi-note>Agit sur toutes les lectures du groupe choisi, ensemble et sans décalage. Cadran : rotation = défilement, appui ou toucher = pause / reprise.</sdpi-note>
+  <sdpi-note>Acts on all playbacks of the chosen group, together and without offset. Dial: rotate = scrub, press or touch = pause / resume.</sdpi-note>
 
 </body>
 </html>

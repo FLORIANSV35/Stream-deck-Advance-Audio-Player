@@ -1,4 +1,4 @@
-// Masque, sur les pistes 2 à 6, les réglages repris de la piste 1 quand la liaison correspondante est cochée.
+// Hides, on tracks 2 to 6, the settings taken from track 1 when the matching link is checked.
 (() => {
   const { useSettings } = SDPIComponents;
   const flags = { cut: "linkCut", fades: "linkFades", volume: "linkVolume" };
@@ -9,11 +9,11 @@
     get().then((v) => apply(!!v));
   }
 
-  // affiche le nom du fichier sous le titre de chaque carte de piste
+  // shows the file name under the title of each track card
   const baseName = (p) => (p || "").split(/[\\/]/).pop().replace(/\.[^.]+$/, "");
   document.querySelectorAll(".sub[data-file]").forEach((el) => {
     const n = Number(el.dataset.file);
-    const show = (v) => { el.textContent = baseName(v) || "Aucun fichier"; };
+    const show = (v) => { el.textContent = baseName(v) || "No file"; };
     const [get] = useSettings(n === 1 ? "file" : "file" + n, show, 0);
     get().then(show);
   });

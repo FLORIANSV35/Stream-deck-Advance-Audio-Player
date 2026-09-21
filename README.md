@@ -1,51 +1,79 @@
-# SAAP Audio — plugin Stream Deck (macOS)
+# SAAP Audio — advanced audio player for Stream Deck
 
-Lecteur audio avancé pour Stream Deck.
+Play several audio files at once from a single key, send each one to the audio interface and outputs you choose,
+and control it live. Works on **macOS** and **Windows** (Windows is in beta).
 
-## Installation (utilisateurs)
-1. Télécharge **`com.saap.audio.streamDeckPlugin`** depuis la [dernière release](../../releases/latest).
-2. Double-clique dessus : l'application Stream Deck l'installe.
-3. Cherche la catégorie **SAAP Audio** dans la liste des actions.
+## Install
 
-Prérequis : macOS 12 ou plus (Apple Silicon et Intel), Stream Deck 6.5 ou plus.
+1. Download **`com.saap.audio.streamDeckPlugin`** from the [latest release](../../releases/latest).
+2. Double-click it: the Stream Deck app installs the plugin.
+3. Look for the **SAAP Audio** category in the action list.
 
-> Le moteur audio n'est pas notarisé par Apple. Le plugin retire lui-même l'étiquette de quarantaine au démarrage,
-> mais si macOS affiche « Apple n'a pas pu vérifier saap-engine », ouvre Réglages Système → Confidentialité et sécurité
-> et clique sur « Ouvrir quand même ».
+Requirements: macOS 12+ (Apple Silicon and Intel) or Windows 10/11, and Stream Deck 6.5 or later.
 
-### Windows (bêta)
-Une version Windows 10/11 est disponible en **préversion** (voir les [releases](../../releases), cochez « Pre-release ») : le même fichier
-`com.saap.audio.streamDeckPlugin` s'installe sur Mac et sur Windows. Elle utilise WASAPI (pas ASIO) et n'a pas encore été validée sur du
-matériel réel : les retours sont bienvenus. Les journaux du plugin se trouvent dans
+> **macOS:** the audio engine is not notarized by Apple. The plugin removes the quarantine flag itself on startup,
+> but if macOS still shows "Apple could not verify saap-engine", open System Settings → Privacy & Security
+> and click "Open Anyway".
+
+### Windows (beta)
+
+The Windows build is published as a **pre-release** (see the [releases](../../releases) page). The same
+`com.saap.audio.streamDeckPlugin` file installs on both macOS and Windows. It uses WASAPI (no ASIO) and has not yet
+been validated on real audio hardware: feedback is welcome. The plugin logs are in
 `%appdata%\Elgato\StreamDeck\Plugins\com.saap.audio.sdPlugin\logs`.
 
-## Fonctions
-- **Lire un son** (touche) : plusieurs fichiers en même temps (mono ou stéréo), fondu d'entrée / de sortie,
-  cut d'entrée / de sortie (points de découpe dans le fichier), boucle, volume par fichier réglable en direct,
-  **interface audio et canaux de sortie choisis par fichier** (stéréo 1-2, 3-4… ou mono sur un canal),
-  décompte / temps écoulé + barre de progression sur la touche, comportement de l'appui (arrêt, pause, relance).
-- **Volume** (touche ou cadran) : volume général ou par groupe de sons, mute. Cadran : rotation = volume, appui = mute.
-- **Tout arrêter** (touche) : tous les sons ou un groupe, avec fondu ou coupure.
-- **Groupes** : un nom libre par son ; « arrêter les autres sons du groupe » permet des lancements exclusifs.
+## Features
+
+- **Play sound** (key):
+  - up to 6 tracks per key, started together within a millisecond (mono or stereo files);
+  - per-track routing to one or **several outputs** (audio interface + stereo pair or single channel);
+  - fade in / fade out, **trim in / trim out** points placed on a waveform, loop;
+  - live volume per track, countdown or elapsed time with a progress ring on the key;
+  - key behavior while playing: stop (with fade), pause / resume, or restart;
+  - track 1 can act as a **master**: its trim points, fades and volume can be linked to the other tracks.
+- **Volume** (key or dial): master volume or per-group volume, mute. Dial: rotate = volume, press = mute.
+- **Skip forward / back** (key or dial): jump within running playbacks; all tracks move together and stay in sync.
+- **Stop all** (key): all sounds or one group, with a fade or an immediate cut. Give each button its own name to
+  have several stop buttons.
+- **Groups**: a free name per sound; "stop the group's other sounds on start" gives exclusive playback.
 
 ## Architecture
-- `engine/` : moteur audio natif en Objective-C (AVAudioEngine, un moteur par lecture, routage par channel map CoreAudio).
-  Dialogue en JSON ligne par ligne sur stdin/stdout.
-- `plugin/` : plugin TypeScript (SDK Elgato) qui lance le moteur, pilote les touches/cadrans et sert l'inspecteur.
+
+- [`engine/`](engine) — native macOS audio engine in Objective-C (one `AVAudioEngine` per playback, channel routing
+  through a CoreAudio channel map).
+- [`engine-rs/`](engine-rs) — Windows audio engine in Rust (`cpal` + `symphonia`, WASAPI). It also builds on macOS,
+  which is how it is tested.
+- [`plugin/`](plugin) — TypeScript plugin (Elgato SDK): it launches the engine, drives keys and dials, and serves the
+  settings panels.
+
+Both engines speak the same protocol: one JSON command per line on stdin, one JSON event per line on stdout.
+The plugin picks `saap-engine` (macOS) or `saap-engine.exe` (Windows) at runtime.
 
 ## Build
+
 ```bash
-./engine/build.sh                 # compile bin/saap-engine
-cd plugin && npm install && npm run build   # bundle bin/plugin.js
+./engine/build.sh                            # macOS engine → plugin/com.saap.audio.sdPlugin/bin/saap-engine
+cd engine-rs && cargo build --release        # Windows engine (run on Windows, or use the CI)
+cd plugin && npm install && npm run build    # bundles bin/plugin.js
 ```
 
-## Créer le paquet à distribuer
+The settings panels in `plugin/com.saap.audio.sdPlugin/ui/` are generated by `plugin/tools/gen-inspector.py`.
+
+## Package and release
+
 ```bash
-./package.sh    # → dist/com.saap.audio.streamDeckPlugin
+./package.sh    # builds dist/com.saap.audio.streamDeckPlugin (macOS engine only, when run locally)
 ```
 
-## Installation en développement
+Pushing a tag such as `v0.2.0` runs the [GitHub Actions workflow](.github/workflows/release.yml), which builds both
+engines, assembles a single package for macOS and Windows, and attaches it to the release. A tag with a dash
+(`v0.2.0-beta.1`) is published as a pre-release.
+
+## Development install
+
 ```bash
+# macOS
 ln -s "$PWD/plugin/com.saap.audio.sdPlugin" "$HOME/Library/Application Support/com.elgato.StreamDeck/Plugins/com.saap.audio.sdPlugin"
 ```
-Puis quitter et relancer l'application Stream Deck. Les logs sont dans `com.saap.audio.sdPlugin/logs/`.
+
+Then quit and restart the Stream Deck app. Logs are in `com.saap.audio.sdPlugin/logs/`.

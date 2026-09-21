@@ -2,7 +2,7 @@
 name = "saap-engine"
 version = "0.1.0"
 edition = "2021"
-description = "Moteur audio du plugin Stream Deck SAAP (Windows ; compile aussi sur macOS pour les tests)"
+description = "Audio engine of the SAAP Stream Deck plugin (Windows; also builds on macOS for testing)"
 
 [dependencies]
 cpal = "0.15"

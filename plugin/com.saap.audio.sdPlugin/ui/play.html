@@ -1,123 +1,123 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Lire des sons</title>
+  <title>Play sounds</title>
   <script src="sdpi-components.js"></script>
   <link rel="stylesheet" href="saap.css" />
 </head>
 <body>
   <header class="hero"><svg viewBox="0 0 36 36"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#22c55e"/></linearGradient></defs>
-<rect width="36" height="36" rx="9" fill="#1d2027"/><g fill="url(#lg)"><rect x="7" y="15" width="3" height="6" rx="1.5"/><rect x="12" y="10" width="3" height="16" rx="1.5"/><rect x="17" y="6" width="3" height="24" rx="1.5"/><rect x="22" y="12" width="3" height="12" rx="1.5"/><rect x="27" y="16" width="3" height="4" rx="1.5"/></g></svg><div><h1>Lire des sons</h1><p>Jusqu'à 6 pistes, synchronisées à la milliseconde</p></div></header>
-  <sdpi-note>Chaque piste a son fichier et sa sortie. Un appui lance toutes les pistes qui ont un fichier, exactement en même temps.</sdpi-note>
-  <h2 class="section">Pistes</h2>
+<rect width="36" height="36" rx="9" fill="#1d2027"/><g fill="url(#lg)"><rect x="7" y="15" width="3" height="6" rx="1.5"/><rect x="12" y="10" width="3" height="16" rx="1.5"/><rect x="17" y="6" width="3" height="24" rx="1.5"/><rect x="22" y="12" width="3" height="12" rx="1.5"/><rect x="27" y="16" width="3" height="4" rx="1.5"/></g></svg><div><h1>Play sounds</h1><p>Up to 6 tracks, synchronized to the millisecond</p></div></header>
+  <sdpi-note>Each track has its own file and outputs. One press starts every track that has a file, exactly at the same time.</sdpi-note>
+  <h2 class="section">Tracks</h2>
   <details class="card " open>
-    <summary><span class="badge">1</span><span class="meta"><span class="title">Piste 1</span><span class="sub" data-file="1"></span></span><span class="tag">MAÎTRE</span></summary>
+    <summary><span class="badge">1</span><span class="meta"><span class="title">Track 1</span><span class="sub" data-file="1"></span></span><span class="tag">MASTER</span></summary>
     <div class="body">
-    <sdpi-item label="Fichier"><sdpi-file setting="file" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
-    <sdpi-item label="Forme d'onde"><div class="wave" data-n="1"></div></sdpi-item>
-    <sdpi-item label="Sorties"><div class="outpick" data-n="1"></div></sdpi-item>
+    <sdpi-item label="File"><sdpi-file setting="file" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
+    <sdpi-item label="Waveform"><div class="wave" data-n="1"></div></sdpi-item>
+    <sdpi-item label="Outputs"><div class="outpick" data-n="1"></div></sdpi-item>
     <sdpi-item label="Volume"><sdpi-range setting="volume" min="0" max="100" step="1" default="100" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu d'entrée (s)"><sdpi-range setting="fadeIn" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu de sortie (s)"><sdpi-range setting="fadeOut" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Cut d'entrée (s)"><sdpi-textfield setting="trimIn" placeholder="0 = début du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Cut de sortie (s)"><sdpi-textfield setting="trimOut" placeholder="0 = fin du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Boucle"><sdpi-checkbox setting="loop" label="Lire en boucle"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Fade in (s)"><sdpi-range setting="fadeIn" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Fade out (s)"><sdpi-range setting="fadeOut" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Trim in (s)"><sdpi-textfield setting="trimIn" placeholder="0 = start of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Trim out (s)"><sdpi-textfield setting="trimOut" placeholder="0 = end of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Loop"><sdpi-checkbox setting="loop" label="Loop playback"></sdpi-checkbox></sdpi-item>
     </div>
   </details>
   <details class="card slave">
-    <summary><span class="badge">2</span><span class="meta"><span class="title">Piste 2</span><span class="sub" data-file="2"></span></span></summary>
+    <summary><span class="badge">2</span><span class="meta"><span class="title">Track 2</span><span class="sub" data-file="2"></span></span></summary>
     <div class="body">
-    <sdpi-item label="Fichier"><sdpi-file setting="file2" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
-    <sdpi-item label="Forme d'onde"><div class="wave" data-n="2"></div></sdpi-item>
-    <sdpi-item label="Sorties"><div class="outpick" data-n="2"></div></sdpi-item>
+    <sdpi-item label="File"><sdpi-file setting="file2" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
+    <sdpi-item label="Waveform"><div class="wave" data-n="2"></div></sdpi-item>
+    <sdpi-item label="Outputs"><div class="outpick" data-n="2"></div></sdpi-item>
     <sdpi-item label="Volume" data-link="volume"><sdpi-range setting="volume2" min="0" max="100" step="1" default="100" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu d'entrée (s)" data-link="fades"><sdpi-range setting="fadeIn2" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu de sortie (s)" data-link="fades"><sdpi-range setting="fadeOut2" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Cut d'entrée (s)" data-link="cut"><sdpi-textfield setting="trimIn2" placeholder="0 = début du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Cut de sortie (s)" data-link="cut"><sdpi-textfield setting="trimOut2" placeholder="0 = fin du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Boucle"><sdpi-checkbox setting="loop2" label="Lire en boucle"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Fade in (s)" data-link="fades"><sdpi-range setting="fadeIn2" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Fade out (s)" data-link="fades"><sdpi-range setting="fadeOut2" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Trim in (s)" data-link="cut"><sdpi-textfield setting="trimIn2" placeholder="0 = start of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Trim out (s)" data-link="cut"><sdpi-textfield setting="trimOut2" placeholder="0 = end of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Loop"><sdpi-checkbox setting="loop2" label="Loop playback"></sdpi-checkbox></sdpi-item>
     </div>
   </details>
   <details class="card slave">
-    <summary><span class="badge">3</span><span class="meta"><span class="title">Piste 3</span><span class="sub" data-file="3"></span></span></summary>
+    <summary><span class="badge">3</span><span class="meta"><span class="title">Track 3</span><span class="sub" data-file="3"></span></span></summary>
     <div class="body">
-    <sdpi-item label="Fichier"><sdpi-file setting="file3" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
-    <sdpi-item label="Forme d'onde"><div class="wave" data-n="3"></div></sdpi-item>
-    <sdpi-item label="Sorties"><div class="outpick" data-n="3"></div></sdpi-item>
+    <sdpi-item label="File"><sdpi-file setting="file3" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
+    <sdpi-item label="Waveform"><div class="wave" data-n="3"></div></sdpi-item>
+    <sdpi-item label="Outputs"><div class="outpick" data-n="3"></div></sdpi-item>
     <sdpi-item label="Volume" data-link="volume"><sdpi-range setting="volume3" min="0" max="100" step="1" default="100" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu d'entrée (s)" data-link="fades"><sdpi-range setting="fadeIn3" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu de sortie (s)" data-link="fades"><sdpi-range setting="fadeOut3" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Cut d'entrée (s)" data-link="cut"><sdpi-textfield setting="trimIn3" placeholder="0 = début du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Cut de sortie (s)" data-link="cut"><sdpi-textfield setting="trimOut3" placeholder="0 = fin du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Boucle"><sdpi-checkbox setting="loop3" label="Lire en boucle"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Fade in (s)" data-link="fades"><sdpi-range setting="fadeIn3" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Fade out (s)" data-link="fades"><sdpi-range setting="fadeOut3" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Trim in (s)" data-link="cut"><sdpi-textfield setting="trimIn3" placeholder="0 = start of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Trim out (s)" data-link="cut"><sdpi-textfield setting="trimOut3" placeholder="0 = end of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Loop"><sdpi-checkbox setting="loop3" label="Loop playback"></sdpi-checkbox></sdpi-item>
     </div>
   </details>
   <details class="card slave">
-    <summary><span class="badge">4</span><span class="meta"><span class="title">Piste 4</span><span class="sub" data-file="4"></span></span></summary>
+    <summary><span class="badge">4</span><span class="meta"><span class="title">Track 4</span><span class="sub" data-file="4"></span></span></summary>
     <div class="body">
-    <sdpi-item label="Fichier"><sdpi-file setting="file4" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
-    <sdpi-item label="Forme d'onde"><div class="wave" data-n="4"></div></sdpi-item>
-    <sdpi-item label="Sorties"><div class="outpick" data-n="4"></div></sdpi-item>
+    <sdpi-item label="File"><sdpi-file setting="file4" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
+    <sdpi-item label="Waveform"><div class="wave" data-n="4"></div></sdpi-item>
+    <sdpi-item label="Outputs"><div class="outpick" data-n="4"></div></sdpi-item>
     <sdpi-item label="Volume" data-link="volume"><sdpi-range setting="volume4" min="0" max="100" step="1" default="100" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu d'entrée (s)" data-link="fades"><sdpi-range setting="fadeIn4" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu de sortie (s)" data-link="fades"><sdpi-range setting="fadeOut4" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Cut d'entrée (s)" data-link="cut"><sdpi-textfield setting="trimIn4" placeholder="0 = début du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Cut de sortie (s)" data-link="cut"><sdpi-textfield setting="trimOut4" placeholder="0 = fin du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Boucle"><sdpi-checkbox setting="loop4" label="Lire en boucle"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Fade in (s)" data-link="fades"><sdpi-range setting="fadeIn4" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Fade out (s)" data-link="fades"><sdpi-range setting="fadeOut4" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Trim in (s)" data-link="cut"><sdpi-textfield setting="trimIn4" placeholder="0 = start of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Trim out (s)" data-link="cut"><sdpi-textfield setting="trimOut4" placeholder="0 = end of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Loop"><sdpi-checkbox setting="loop4" label="Loop playback"></sdpi-checkbox></sdpi-item>
     </div>
   </details>
   <details class="card slave">
-    <summary><span class="badge">5</span><span class="meta"><span class="title">Piste 5</span><span class="sub" data-file="5"></span></span></summary>
+    <summary><span class="badge">5</span><span class="meta"><span class="title">Track 5</span><span class="sub" data-file="5"></span></span></summary>
     <div class="body">
-    <sdpi-item label="Fichier"><sdpi-file setting="file5" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
-    <sdpi-item label="Forme d'onde"><div class="wave" data-n="5"></div></sdpi-item>
-    <sdpi-item label="Sorties"><div class="outpick" data-n="5"></div></sdpi-item>
+    <sdpi-item label="File"><sdpi-file setting="file5" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
+    <sdpi-item label="Waveform"><div class="wave" data-n="5"></div></sdpi-item>
+    <sdpi-item label="Outputs"><div class="outpick" data-n="5"></div></sdpi-item>
     <sdpi-item label="Volume" data-link="volume"><sdpi-range setting="volume5" min="0" max="100" step="1" default="100" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu d'entrée (s)" data-link="fades"><sdpi-range setting="fadeIn5" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu de sortie (s)" data-link="fades"><sdpi-range setting="fadeOut5" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Cut d'entrée (s)" data-link="cut"><sdpi-textfield setting="trimIn5" placeholder="0 = début du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Cut de sortie (s)" data-link="cut"><sdpi-textfield setting="trimOut5" placeholder="0 = fin du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Boucle"><sdpi-checkbox setting="loop5" label="Lire en boucle"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Fade in (s)" data-link="fades"><sdpi-range setting="fadeIn5" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Fade out (s)" data-link="fades"><sdpi-range setting="fadeOut5" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Trim in (s)" data-link="cut"><sdpi-textfield setting="trimIn5" placeholder="0 = start of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Trim out (s)" data-link="cut"><sdpi-textfield setting="trimOut5" placeholder="0 = end of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Loop"><sdpi-checkbox setting="loop5" label="Loop playback"></sdpi-checkbox></sdpi-item>
     </div>
   </details>
   <details class="card slave">
-    <summary><span class="badge">6</span><span class="meta"><span class="title">Piste 6</span><span class="sub" data-file="6"></span></span></summary>
+    <summary><span class="badge">6</span><span class="meta"><span class="title">Track 6</span><span class="sub" data-file="6"></span></span></summary>
     <div class="body">
-    <sdpi-item label="Fichier"><sdpi-file setting="file6" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
-    <sdpi-item label="Forme d'onde"><div class="wave" data-n="6"></div></sdpi-item>
-    <sdpi-item label="Sorties"><div class="outpick" data-n="6"></div></sdpi-item>
+    <sdpi-item label="File"><sdpi-file setting="file6" accept=".wav,.mp3,.aif,.aiff,.m4a,.aac,.flac,.caf,.mp4"></sdpi-file></sdpi-item>
+    <sdpi-item label="Waveform"><div class="wave" data-n="6"></div></sdpi-item>
+    <sdpi-item label="Outputs"><div class="outpick" data-n="6"></div></sdpi-item>
     <sdpi-item label="Volume" data-link="volume"><sdpi-range setting="volume6" min="0" max="100" step="1" default="100" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu d'entrée (s)" data-link="fades"><sdpi-range setting="fadeIn6" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Fondu de sortie (s)" data-link="fades"><sdpi-range setting="fadeOut6" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
-    <sdpi-item label="Cut d'entrée (s)" data-link="cut"><sdpi-textfield setting="trimIn6" placeholder="0 = début du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Cut de sortie (s)" data-link="cut"><sdpi-textfield setting="trimOut6" placeholder="0 = fin du fichier" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Boucle"><sdpi-checkbox setting="loop6" label="Lire en boucle"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Fade in (s)" data-link="fades"><sdpi-range setting="fadeIn6" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Fade out (s)" data-link="fades"><sdpi-range setting="fadeOut6" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Trim in (s)" data-link="cut"><sdpi-textfield setting="trimIn6" placeholder="0 = start of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Trim out (s)" data-link="cut"><sdpi-textfield setting="trimOut6" placeholder="0 = end of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Loop"><sdpi-checkbox setting="loop6" label="Loop playback"></sdpi-checkbox></sdpi-item>
     </div>
   </details>
-  <h2 class="section">Liaison</h2>
+  <h2 class="section">Linking</h2>
   <details class="card plain">
-    <summary><span class="badge">⛓</span><span class="meta"><span class="title">Liaison des pistes</span><span class="sub">La piste 1 est le maître</span></span></summary>
+    <summary><span class="badge">⛓</span><span class="meta"><span class="title">Track linking</span><span class="sub">Track 1 is the master</span></span></summary>
     <div class="body">
-    <sdpi-item label="Cut"><sdpi-checkbox setting="linkCut" label="Pistes 2-6 : mêmes points de cut que la piste 1"></sdpi-checkbox></sdpi-item>
-    <sdpi-item label="Fondus"><sdpi-checkbox setting="linkFades" label="Pistes 2-6 : mêmes fondus que la piste 1"></sdpi-checkbox></sdpi-item>
-    <sdpi-item label="Volume"><sdpi-checkbox setting="linkVolume" label="Pistes 2-6 : même volume que la piste 1"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Trim"><sdpi-checkbox setting="linkCut" label="Tracks 2-6: same trim points as track 1"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Fades"><sdpi-checkbox setting="linkFades" label="Tracks 2-6: same fades as track 1"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Volume"><sdpi-checkbox setting="linkVolume" label="Tracks 2-6: same volume as track 1"></sdpi-checkbox></sdpi-item>
     </div>
   </details>
-  <h2 class="section">Touche</h2>
+  <h2 class="section">Key</h2>
   <details class="card plain" open>
-    <summary><span class="badge">◉</span><span class="meta"><span class="title">Comportement</span></span></summary>
+    <summary><span class="badge">◉</span><span class="meta"><span class="title">Behavior</span></span></summary>
     <div class="body">
-    <sdpi-item label="Nom affiché"><sdpi-textfield setting="label" placeholder="Nom de la piste 1 par défaut" maxlength="24"></sdpi-textfield></sdpi-item>
-    <sdpi-item label="Appui pendant la lecture"><sdpi-select setting="mode" default="stop">
-        <option value="stop">Arrêter (avec fondu de sortie)</option>
-        <option value="pause">Pause / reprise</option>
-        <option value="restart">Relancer depuis le début</option>
+    <sdpi-item label="Display name"><sdpi-textfield setting="label" placeholder="Track 1 file name by default" maxlength="24"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Press while playing"><sdpi-select setting="mode" default="stop">
+        <option value="stop">Stop (with fade out)</option>
+        <option value="pause">Pause / resume</option>
+        <option value="restart">Restart from the beginning</option>
       </sdpi-select></sdpi-item>
-    <sdpi-item label="Affichage"><sdpi-checkbox setting="countdown" label="Décompte (temps restant)" default="true"></sdpi-checkbox></sdpi-item>
-    <sdpi-item label="Groupe"><sdpi-select setting="group" datasource="getGroupsPlay" loading="Chargement…" default="none" placeholder="Aucun groupe"></sdpi-select></sdpi-item>
-    <sdpi-item label="Nouveau groupe"><sdpi-textfield setting="newGroup" placeholder="Saisir un nom puis valider (Entrée)" maxlength="20"></sdpi-textfield></sdpi-item>
-    <sdpi-item label=""><sdpi-checkbox setting="stopOthers" label="Arrêter les autres sons du groupe au lancement"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Display"><sdpi-checkbox setting="countdown" label="Countdown (time remaining)" default="true"></sdpi-checkbox></sdpi-item>
+    <sdpi-item label="Group"><sdpi-select setting="group" datasource="getGroupsPlay" loading="Loading…" default="none" placeholder="No group"></sdpi-select></sdpi-item>
+    <sdpi-item label="New group"><sdpi-textfield setting="newGroup" placeholder="Type a name, then press Enter" maxlength="20"></sdpi-textfield></sdpi-item>
+    <sdpi-item label=""><sdpi-checkbox setting="stopOthers" label="Stop other sounds of the same group on start"></sdpi-checkbox></sdpi-item>
     </div>
   </details>
 

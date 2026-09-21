@@ -1,5 +1,5 @@
-//! Une lecture = un flux de sortie dédié, lié à un périphérique et à des canaux précis.
-//! Tout le traitement (position, fondus, volume, routage) se fait dans le callback audio, à l'échantillon près.
+//! One playback = a dedicated output stream, bound to one device and to specific channels.
+//! All the processing (position, fades, volume, routing) happens in the audio callback, sample-accurately.
 
 use std::f32::consts::FRAC_PI_2;
 use std::sync::{Arc, Mutex};
@@ -35,7 +35,7 @@ pub struct DevInfo {
     pub channels: usize,
 }
 
-/// Périphériques de sortie. L'identifiant est le nom (suffixé « (2) »… en cas de doublon).
+/// Output devices. The identifier is the name (suffixed " (2)"… when duplicated).
 pub fn list_devices() -> Vec<DevInfo> {
     let host = cpal::default_host();
     let mut result: Vec<DevInfo> = Vec::new();
@@ -57,7 +57,7 @@ pub fn list_devices() -> Vec<DevInfo> {
 fn find_device(uid: &str) -> Result<cpal::Device, String> {
     let host = cpal::default_host();
     if uid == "default" {
-        return host.default_output_device().ok_or_else(|| "Aucune sortie audio par défaut".to_string());
+        return host.default_output_device().ok_or_else(|| "No default audio output".to_string());
     }
     let mut seen: Vec<String> = Vec::new();
     for dev in host.output_devices().map_err(|e| e.to_string())? {
@@ -73,7 +73,7 @@ fn find_device(uid: &str) -> Result<cpal::Device, String> {
             return Ok(dev);
         }
     }
-    Err(format!("Périphérique introuvable : {uid}"))
+    Err(format!("Device not found: {uid}"))
 }
 
 struct Ramp {
@@ -86,17 +86,17 @@ struct Ramp {
 
 struct State {
     data: Arc<AudioData>,
-    /// bornes de la découpe et position, en trames du fichier source
+    /// trim bounds and position, in frames of the source file
     start: f64,
     end: f64,
     pos: f64,
     src_rate: f64,
     out_rate: f64,
-    /// trames source avancées par trame de sortie (rééchantillonnage)
+    /// source frames advanced per output frame (resampling)
     step: f64,
     looping: bool,
     paused: bool,
-    /// silence jusqu'à cet instant (audible) : c'est ce qui aligne plusieurs lectures
+    /// silence until this (audible) instant: this is what aligns several playbacks
     gate: Option<Instant>,
     gain: f32,
     cur_gain: f32,
@@ -106,14 +106,14 @@ struct State {
     finished: Option<Reason>,
     ch: usize,
     mono: bool,
-    /// instant audible du premier échantillon joué (mesure de synchro)
+    /// audible instant of the first sample played (sync measurement)
     first_playout: Option<Instant>,
-    /// nombre de callbacks reçus : > 0 = le flux tourne vraiment (un périphérique USB peut mettre du temps à démarrer)
+    /// number of callbacks received: > 0 = the stream is really running (a USB device can take a while to start)
     callbacks: u64,
 }
 
 impl State {
-    /// Trame source interpolée linéairement à la position `p` → (gauche, droite).
+    /// Source frame linearly interpolated at position `p` → (left, right).
     fn frame_at(&self, p: f64) -> (f32, f32) {
         let c = self.data.channels;
         let last = self.data.frames - 1;
@@ -144,7 +144,7 @@ impl State {
             self.gate = None;
             if std::env::var_os("SAAP_DEBUG").is_some() {
                 let ahead = gate.checked_duration_since(playout).map(|d| d.as_secs_f64() * 1000.0).unwrap_or(-1.0);
-                eprintln!("gate consommée : {frames} trames, décalage {first}, gate dans {ahead:.2} ms");
+                eprintln!("gate consumed: {frames} frames, offset {first}, gate in {ahead:.2} ms");
             }
             if self.first_playout.is_none() {
                 self.first_playout = Some(playout + Duration::from_secs_f64(first as f64 / self.out_rate));
@@ -163,7 +163,7 @@ impl State {
             }
             let (l, r) = self.frame_at(self.pos);
 
-            // fondu en cours (sinus/cosinus : puissance constante)
+            // fade in progress (sine/cosine: constant power)
             if let Some(mut rp) = self.ramp.take() {
                 rp.done += 1.0;
                 let p = (rp.done / rp.total).min(1.0) as f32;
@@ -182,7 +182,7 @@ impl State {
                     self.ramp = Some(rp);
                 }
             }
-            // fondu de sortie automatique avant la fin du fichier
+            // automatic fade out before the end of the file
             let mut auto = 1.0f32;
             if !self.looping && self.auto_fade_out > 0.0 {
                 let remaining = (self.end - self.pos) / self.src_rate;
@@ -222,10 +222,10 @@ pub struct Voice {
 }
 
 impl Voice {
-    /// `gate` : instant audible de départ (None = tout de suite).
+    /// `gate`: audible start instant (None = right away).
     pub fn new(id: &str, data: Arc<AudioData>, p: &Params, gate: Option<Instant>) -> Result<Voice, String> {
         let device = find_device(&p.device)?;
-        let config = device.default_output_config().map_err(|e| format!("Sortie inutilisable : {e}"))?;
+        let config = device.default_output_config().map_err(|e| format!("Unusable output: {e}"))?;
         let format = config.sample_format();
         let stream_config: StreamConfig = config.config();
         let out_rate = stream_config.sample_rate.0 as f64;
@@ -234,7 +234,7 @@ impl Voice {
         let start = (p.trim_in * src_rate).clamp(0.0, data.frames as f64);
         let end = if p.trim_out > 0.0 { (p.trim_out * src_rate).min(data.frames as f64) } else { data.frames as f64 };
         if end <= start + 1.0 {
-            return Err("Points de découpe invalides".to_string());
+            return Err("Invalid trim points".to_string());
         }
         let gain = p.volume.clamp(0.0, 1.0);
         let mut state = State {
@@ -271,9 +271,9 @@ impl Voice {
             SampleFormat::I16 => build::<i16>(&device, &stream_config, &shared),
             SampleFormat::I32 => build::<i32>(&device, &stream_config, &shared),
             SampleFormat::U16 => build::<u16>(&device, &stream_config, &shared),
-            other => Err(format!("Format audio non géré : {other:?}")),
+            other => Err(format!("Unsupported audio format: {other:?}")),
         }?;
-        stream.play().map_err(|e| format!("Démarrage audio impossible : {e}"))?;
+        stream.play().map_err(|e| format!("Cannot start audio: {e}"))?;
         Ok(Voice { id: id.to_string(), duration, shared, _stream: stream })
     }
 
@@ -281,13 +281,13 @@ impl Voice {
         self.shared.lock().unwrap_or_else(|e| e.into_inner())
     }
 
-    /// Position dans la découpe, en secondes.
+    /// Position within the trim, in seconds.
     pub fn position(&self) -> f64 {
         let s = self.lock();
         ((s.pos.min(s.end) - s.start) / s.src_rate).max(0.0)
     }
 
-    /// Le flux a reçu son premier callback : on peut fixer l'instant de départ commun.
+    /// The stream received its first callback: the common start instant can be set.
     pub fn is_running(&self) -> bool {
         self.lock().callbacks > 0
     }
@@ -320,7 +320,7 @@ impl Voice {
         self.lock().paused = false;
     }
 
-    /// Arrêt avec fondu de sortie (0 = coupure immédiate).
+    /// Stop with a fade out (0 = immediate cut).
     pub fn stop(&self, fade_seconds: f64) {
         let mut s = self.lock();
         if fade_seconds <= 0.0 {
@@ -337,7 +337,7 @@ impl Voice {
         self.lock().finished = Some(Reason::Stopped);
     }
 
-    /// Déplace la lecture à `seconds` (dans la découpe). `gate` : reprise à un instant précis ; `resume` : sort de la pause.
+    /// Moves playback to `seconds` (within the trim). `gate`: resume at an exact instant; `resume`: leaves the paused state.
     pub fn seek(&self, seconds: f64, gate: Option<Instant>, resume: bool) {
         let mut s = self.lock();
         let len = (s.end - s.start) / s.src_rate;
@@ -355,7 +355,7 @@ impl Voice {
         if gate.is_some() {
             s.gate = gate;
         }
-        // revenu avant la zone du fondu de fin : rien à annuler, il est recalculé à chaque échantillon
+        // moved back before the fade-out zone: nothing to cancel, it is recomputed every sample
     }
 }
 
@@ -374,7 +374,7 @@ where
                 scratch.clear();
                 scratch.resize(out.len(), 0.0);
                 if let Ok(mut st) = data_state.try_lock() {
-                    // instant où ce tampon sera réellement audible
+                    // instant at which this buffer will actually be audible
                     let ts = info.timestamp();
                     let delay = ts.playback.duration_since(&ts.callback).unwrap_or_default();
 
@@ -391,5 +391,5 @@ where
             },
             None,
         )
-        .map_err(|e| format!("Impossible d'utiliser la sortie : {e}"))
+        .map_err(|e| format!("Cannot use the output: {e}"))
 }

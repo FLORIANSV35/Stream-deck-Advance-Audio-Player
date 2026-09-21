@@ -24,7 +24,7 @@ type Surface = KeyAction<SeekSettings> | DialAction<SeekSettings>;
 const targets = (s: SeekSettings): Playback[] =>
   [...playbacks.values()].filter((p) => p.dur > 0 && inGroup(p, normGroup(s.group)));
 
-/** Avancer / reculer dans les lectures en cours (toutes, ou celles d'un groupe). */
+/** Skips forward / back in running playbacks (all of them, or those of a group). */
 @action({ UUID: "com.saap.audio.seek" })
 export class SeekAction extends SingletonAction<SeekSettings> {
   #surfaces = new Map<string, Surface>();
@@ -78,7 +78,7 @@ export class SeekAction extends SingletonAction<SeekSettings> {
   }
 
   #skip(s: SeekSettings, delta: number): void {
-    // un seul ordre pour toutes les lectures : elles sautent ensemble et restent synchrones
+    // a single command for all playbacks: they skip together and stay in sync
     const ids = targets(s).map((p) => p.id);
     if (ids.length > 0) engine.seekMany(ids, delta);
   }
@@ -97,7 +97,7 @@ export class SeekAction extends SingletonAction<SeekSettings> {
     const group = normGroup(s.group);
     let view: object;
     if (surface.isDial()) {
-      // affiche la position de la lecture qui dure le plus longtemps
+      // shows the position of the longest playback
       const ref = targets(s).sort((a, b) => b.dur - a.dur)[0];
       view = {
         title: group || "Position",

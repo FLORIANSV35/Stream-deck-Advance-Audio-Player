@@ -17,7 +17,7 @@ import type { StopAllSettings } from "../settings.js";
 export class StopAllAction extends SingletonAction<StopAllSettings> {
   #image(s: StopAllSettings): string {
     const mode = s.mode === "cut" ? "cut" : "fade";
-    return stopKey({ label: s.label?.trim() || "Tout arrêter", group: normGroup(s.group), mode, fade: s.fade ?? 1.5 });
+    return stopKey({ label: s.label?.trim() || "Stop all", group: normGroup(s.group), mode, fade: s.fade ?? 1.5 });
   }
 
   override onWillAppear(ev: WillAppearEvent<StopAllSettings>): void {

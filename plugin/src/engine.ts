@@ -34,26 +34,26 @@ type EngineEvents = {
   started: [id: string, duration: number];
   state: [id: string, state: "playing" | "paused", pos: number, dur: number];
   ended: [id: string, reason: "finished" | "stopped" | "error", message?: string];
-  /** le moteur a redémarré : toutes les lectures en cours sont perdues */
+  /** the engine restarted: all running playbacks are lost */
   reset: [];
 };
 
-// macOS : moteur natif Objective-C (saap-engine) ; Windows : moteur Rust (saap-engine.exe)
-// SAAP_ENGINE : chemin d'un autre moteur (tests)
+// macOS: native Objective-C engine (saap-engine); Windows: Rust engine (saap-engine.exe)
+// SAAP_ENGINE: path to another engine (tests)
 const ENGINE_PATH =
   process.env.SAAP_ENGINE ?? fileURLToPath(new URL(process.platform === "win32" ? "./saap-engine.exe" : "./saap-engine", import.meta.url));
 
 /**
- * Prépare le binaire du moteur avant de le lancer. Un plugin téléchargé peut arriver sans droit d'exécution,
- * et avec l'étiquette de quarantaine de macOS, qui déclenche « Apple n'a pas pu vérifier… » au premier lancement.
+ * Prepares the engine binary before launching it. A downloaded plugin may arrive without the execute bit,
+ * and with the macOS quarantine flag, which triggers "Apple could not verify…" on first launch.
  */
 function prepareBinary(): void {
-  if (process.platform !== "darwin") return; // quarantaine et droits d'exécution : spécifiques à macOS
-  try { chmodSync(ENGINE_PATH, 0o755); } catch { /* déjà correct, ou lecture seule */ }
-  try { execFileSync("/usr/bin/xattr", ["-d", "com.apple.quarantine", ENGINE_PATH], { stdio: "ignore" }); } catch { /* pas de quarantaine */ }
+  if (process.platform !== "darwin") return; // quarantine and execute bit: macOS only
+  try { chmodSync(ENGINE_PATH, 0o755); } catch { /* already correct, or read-only */ }
+  try { execFileSync("/usr/bin/xattr", ["-d", "com.apple.quarantine", ENGINE_PATH], { stdio: "ignore" }); } catch { /* no quarantine flag */ }
 }
 
-/** Client du moteur audio natif (processus enfant, JSON ligne par ligne). */
+/** Client of the native audio engine (child process, one JSON message per line). */
 class Engine extends EventEmitter<EngineEvents> {
   #proc?: ChildProcess;
   #devices: OutputDevice[] = [];
@@ -66,12 +66,12 @@ class Engine extends EventEmitter<EngineEvents> {
     const proc = spawn(ENGINE_PATH, [], { stdio: ["pipe", "pipe", "inherit"], windowsHide: true });
     this.#proc = proc;
     createInterface({ input: proc.stdout! }).on("line", (line) => this.#onLine(line));
-    proc.on("error", (e) => streamDeck.logger.error(`Moteur audio : ${e.message}`));
+    proc.on("error", (e) => streamDeck.logger.error(`Audio engine: ${e.message}`));
     proc.on("exit", (code) => {
       if (this.#proc !== proc) return;
       this.#proc = undefined;
       if (this.#stopping) return;
-      streamDeck.logger.warn(`Moteur audio arrêté (code ${code}), redémarrage`);
+      streamDeck.logger.warn(`Audio engine stopped (code ${code}), restarting`);
       this.emit("reset");
       setTimeout(() => this.start(), 1000);
     });
@@ -115,7 +115,7 @@ class Engine extends EventEmitter<EngineEvents> {
     this.#proc?.stdin?.write(JSON.stringify(cmd) + "\n");
   }
 
-  /** Interroge le moteur et renvoie la liste à jour des périphériques de sortie. */
+  /** Asks the engine for the up-to-date list of output devices. */
   async devices(): Promise<OutputDevice[]> {
     const before = this.#devices;
     this.#devices = [];
@@ -125,7 +125,7 @@ class Engine extends EventEmitter<EngineEvents> {
     return this.#devices;
   }
 
-  /** Forme d'onde d'un fichier (n crêtes) ; undefined si illisible ou si le moteur ne répond pas. */
+  /** Waveform of a file (n peaks); undefined if unreadable or if the engine does not answer. */
   peaks(file: string, n = 600): Promise<PeaksResult | undefined> {
     const req = ++this.#peakReq;
     return new Promise((resolve) => {
@@ -136,16 +136,16 @@ class Engine extends EventEmitter<EngineEvents> {
   }
 
   play(cmd: PlayCommand): void { this.#send({ cmd: "play", ...cmd }); }
-  /** Lance plusieurs pistes sur un même instant précis (synchro à moins d'une ms). */
+  /** Starts several tracks at one exact instant (synchronized within a millisecond). */
   playBatch(items: PlayCommand[]): void { this.#send({ cmd: "playBatch", items }); }
   stopPlayback(id: string, fade = 0): void { this.#send({ cmd: "stop", id, fade }); }
   cut(id: string): void { this.#send({ cmd: "cut", id }); }
-  /** Déplace la lecture de `delta` secondes (négatif = reculer). */
+  /** Moves playback by `delta` seconds (negative = backwards). */
   seek(id: string, delta: number): void { this.#send({ cmd: "seek", id, delta }); }
-  /** Déplace plusieurs lectures ensemble : elles repartent toutes de la position de la première, au même instant. */
+  /** Moves several playbacks together: all restart from the position of the first one, at the same instant. */
   seekMany(ids: string[], delta: number): void { this.#send({ cmd: "seek", ids, delta }); }
   pauseMany(ids: string[]): void { this.#send({ cmd: "pause", ids }); }
-  /** Reprend plusieurs lectures sur un même instant (et les réaligne). */
+  /** Resumes several playbacks at the same instant (and realigns them). */
   resumeMany(ids: string[]): void { this.#send({ cmd: "resume", ids }); }
   pause(id: string): void { this.#send({ cmd: "pause", id }); }
   resume(id: string): void { this.#send({ cmd: "resume", id }); }

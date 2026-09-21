@@ -3,10 +3,10 @@ import { EventEmitter } from "node:events";
 
 type Level = { pct: number; muted: boolean };
 
-/** Courbe de volume : 100 % = gain 1, 50 % ≈ -12 dB, plus fin dans les bas niveaux. */
+/** Volume curve: 100 % = gain 1, 50 % ≈ -12 dB, finer resolution at low levels. */
 export const toGain = (pct: number): number => Math.max(0, Math.min(1, pct / 100)) ** 2;
 
-/** Niveaux live par cible : "*" (général) et un niveau par groupe. Persistés entre les sessions. */
+/** Live levels per target: "*" (master) and one level per group. Persisted between sessions. */
 class Mixer extends EventEmitter<{ change: [target: string] }> {
   #levels = new Map<string, Level>();
   #groups = new Set<string>();
@@ -24,7 +24,7 @@ class Mixer extends EventEmitter<{ change: [target: string] }> {
     });
   }
 
-  /** Mémorise un nom de groupe pour le proposer dans les menus. */
+  /** Remembers a group name so it can be offered in the menus. */
   addGroup(name: string | undefined): void {
     if (!name || name === "*" || this.#groups.has(name)) return;
     this.#groups.add(name);
@@ -53,7 +53,7 @@ class Mixer extends EventEmitter<{ change: [target: string] }> {
     return l.muted ? 0 : toGain(l.pct);
   }
 
-  /** Gain appliqué à une lecture appartenant à ce groupe (général × groupe). */
+  /** Gain applied to a playback belonging to this group (master × group). */
   gainFor(group: string | undefined): number {
     return this.#gain("*") * (group ? this.#gain(group) : 1);
   }

@@ -26,15 +26,15 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --release --manifest-path engine-rs/Cargo.toml
-      # protocole : le moteur doit répondre « ready » puis quitter proprement
-      - name: Test de démarrage
+      # protocol: the engine must answer "ready" and then exit cleanly
+      - name: Startup test
         shell: pwsh
         run: |
           $out = '{"cmd":"quit"}' | & engine-rs/target/release/saap-engine.exe
           Write-Host $out
-          if ($out -notmatch '"evt":"ready"') { throw "le moteur n'a pas répondu ready" }
-      # décodage d'un fichier + liste des périphériques (le serveur de CI n'a pas forcément de carte son : la liste peut être vide)
-      - name: Test décodage et périphériques
+          if ($out -notmatch '"evt":"ready"') { throw "the engine did not answer ready" }
+      # decoding of a file + device list (the CI server may have no sound card: the list can be empty)
+      - name: Decoding and devices test
         shell: pwsh
         run: |
           python -c "import wave,struct,math; w=wave.open('t.wav','wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(44100); w.writeframes(b''.join(struct.pack('<hh',int(8000*math.sin(i/20)),int(8000*math.sin(i/20))) for i in range(44100*2))); w.close()"
@@ -42,9 +42,9 @@ jobs:
           $cmds = @('{"cmd":"devices"}', ('{"cmd":"peaks","req":1,"file":"' + $wav + '","n":10}'), '{"cmd":"peaks","req":2,"file":"absent.wav"}')
           $out = & { $cmds; Start-Sleep 2; '{"cmd":"quit"}' } | & engine-rs/target/release/saap-engine.exe
           $out | ForEach-Object { Write-Host $_ }
-          if (-not ($out -match '"evt":"devices"')) { throw "pas de réponse devices" }
-          if (-not ($out -match '"duration":2\.0')) { throw "forme d'onde non calculée" }
-          if (-not ($out -match '"error":"Fichier illisible"')) { throw "l'erreur de fichier absent n'est pas renvoyée" }
+          if (-not ($out -match '"evt":"devices"')) { throw "no answer to the devices command" }
+          if (-not ($out -match '"duration":2\.0')) { throw "waveform not computed" }
+          if (-not ($out -match '"error":"Unreadable file"')) { throw "the missing-file error was not returned" }
       - uses: actions/upload-artifact@v4
         with:
           name: engine-windows
@@ -75,12 +75,12 @@ jobs:
         with:
           name: com.saap.audio.streamDeckPlugin
           path: dist/com.saap.audio.streamDeckPlugin
-      - name: Joint à la release (sur un tag)
+      - name: Attach to the release (on a tag)
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # un tag avec un tiret (v0.2.0-beta.1) est publié comme préversion : il n'est pas proposé comme « dernière version »
+          # a tag containing a dash (v0.2.0-beta.1) is published as a pre-release: it is not offered as the "latest release"
           FLAGS=""
           case "$GITHUB_REF_NAME" in *-*) FLAGS="--prerelease" ;; esac
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes $FLAGS

@@ -20,14 +20,14 @@ import { fmtTime, playKey, type PlayView } from "../render.js";
 import { MAX_TRACKS, seconds, trackSettings, type PlaySettings } from "../settings.js";
 
 /**
- * Chemin renvoyé par le sélecteur de fichier de l'inspecteur : selon le système, il peut être préfixé par
- * "C:\fakepath\", encodé, sans "/" initial (macOS) ou avec des "/" au lieu de "\" (Windows). On essaie les variantes.
+ * Path returned by the inspector's file picker: depending on the system it may be prefixed with
+ * "C:\fakepath\", encoded, missing the leading "/" (macOS) or using "/" instead of "\" (Windows). We try the variants.
  */
 function resolvePath(p: string | undefined): string | undefined {
   if (!p) return undefined;
   const stripped = p.replace(/^C:\\fakepath\\/i, "");
   let decoded = stripped;
-  try { decoded = decodeURIComponent(stripped); } catch { /* pas encodé */ }
+  try { decoded = decodeURIComponent(stripped); } catch { /* not encoded */ }
   const candidates = new Set<string>([p, stripped, decoded]);
   for (const c of [...candidates]) {
     candidates.add("/" + c);
@@ -36,7 +36,7 @@ function resolvePath(p: string | undefined): string | undefined {
   return [...candidates].find((c) => existsSync(c));
 }
 
-/** Les pistes d'une touche ont l'identifiant "<contexte>#<n>" côté moteur. */
+/** The tracks of a key have the id "<context>#<n>" on the engine side. */
 const ctxOf = (id: string) => id.split("#")[0];
 const tracksOf = (ctx: string): Playback[] => [...playbacks.values()].filter((p) => ctxOf(p.id) === ctx);
 
@@ -62,7 +62,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       playbacks.delete(id);
       this.#render(ctxOf(id));
       if (reason === "error") {
-        streamDeck.logger.error(`Lecture ${id} : ${message}`);
+        streamDeck.logger.error(`Playback ${id}: ${message}`);
         void this.#keys.get(ctxOf(id))?.showAlert();
       }
     });
@@ -83,7 +83,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   }
 
   override onWillDisappear(ev: WillDisappearEvent<PlaySettings>): void {
-    // la lecture continue si l'utilisateur change de page : on ne retire que l'affichage
+    // playback continues if the user changes page: only the display is removed
     this.#keys.delete(ev.action.id);
   }
 
@@ -91,7 +91,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     const id = ev.action.id;
     const newGroup = ev.payload.settings.newGroup?.trim();
     if (newGroup) {
-      // nom saisi dans « Nouveau groupe » : il devient le groupe de la touche et rejoint le menu
+      // name typed in "New group": it becomes the key's group and joins the menu
       mixer.addGroup(newGroup);
       await ev.action.setSettings({ ...ev.payload.settings, group: newGroup, newGroup: "" });
       await sendGroups("getGroupsPlay");
@@ -100,7 +100,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     mixer.addGroup(normGroup(ev.payload.settings.group));
     this.#settings.set(id, ev.payload.settings);
     for (const p of tracksOf(id)) {
-      // volume live : le curseur de l'inspecteur agit pendant la lecture
+      // live volume: the inspector slider acts during playback
       const n = parseInt(p.id.split("#")[1], 10);
       p.settings = { ...p.settings, volume: trackSettings(ev.payload.settings, n).volume, group: normGroup(ev.payload.settings.group) };
       engine.volume(p.id, gainFor(p.settings));
@@ -119,7 +119,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       const result = path ? await this.#peaks(path) : undefined;
       await streamDeck.ui.sendToPropertyInspector({
         event: "peaks", track: track ?? 0, file: file ?? "",
-        ...(result ? { duration: result.duration, peaks: result.peaks } : { error: path ? "Fichier illisible" : "Fichier introuvable" }),
+        ...(result ? { duration: result.duration, peaks: result.peaks } : { error: path ? "Unreadable file" : "File not found" }),
       } as JsonValue);
     } else if (event === "getOutputs") {
       await streamDeck.ui.sendToPropertyInspector({ event, items: outputItems(await engine.devices()) } as JsonValue);
@@ -163,13 +163,13 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       .filter(({ t }) => t.file);
     if (tracks.length === 0 || tracks.some((x) => !x.file)) {
       void key.showAlert();
-      streamDeck.logger.warn(`Fichier introuvable ou aucun fichier choisi (touche ${ctx})`);
+      streamDeck.logger.warn(`File not found or no file chosen (key ${ctx})`);
       for (const { n, t, file } of tracks) {
         if (file) continue;
         const raw = String(t.file);
-        // sur Windows, le sélecteur peut ne renvoyer que le nom du fichier, sans son dossier
-        const hint = !/[\\/]/.test(raw.replace(/^C:\\fakepath\\/i, "")) ? " (nom seul, sans dossier : chemin complet non fourni par le sélecteur)" : "";
-        streamDeck.logger.warn(`  piste ${n} : valeur reçue ${JSON.stringify(raw)}${hint}`);
+        // on Windows the picker may return only the file name, without its folder
+        const hint = !/[\\/]/.test(raw.replace(/^C:\\fakepath\\/i, "")) ? " (name only, no folder: the picker did not provide the full path)" : "";
+        streamDeck.logger.warn(`  track ${n}: received value ${JSON.stringify(raw)}${hint}`);
       }
       if (tracks.length === 0) return;
     }
@@ -180,7 +180,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     const commands: PlayCommand[] = [];
     for (const { n, t, file } of tracks) {
       if (!file) continue;
-      // une lecture par destination : la même piste peut sortir sur plusieurs interfaces / paires de canaux
+      // one playback per destination: the same track can go to several interfaces / channel pairs
       const outputs = trackOutputs(t);
       outputs.forEach((out, k) => {
         const id = k === 0 ? `${ctx}#${n}` : `${ctx}#${n}.${k}`;
@@ -193,8 +193,8 @@ export class PlayAction extends SingletonAction<PlaySettings> {
         playbacks.set(id, { id, settings: t, state: "playing", pos: 0, dur: 0 });
       });
     }
-    streamDeck.logger.info(`Lecture ${ctx} : ${tracks.length} piste(s), ${commands.length} sortie(s)`);
-    // toutes les pistes partent sur le même instant précis (synchro < 1 ms)
+    streamDeck.logger.info(`Playback ${ctx}: ${tracks.length} track(s), ${commands.length} output(s)`);
+    // all tracks start at the same exact instant (sync < 1 ms)
     engine.playBatch(commands);
     this.#render(ctx);
   }
@@ -204,7 +204,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     if (!key) return;
     const s = this.#settings.get(id) ?? {};
     const first = s.file as string | undefined;
-    const label = s.label || (first ? basename(first, extname(first)) : "Choisir un fichier");
+    const label = s.label || (first ? basename(first, extname(first)) : "Choose a file");
     const active = tracksOf(id);
     const configured = Array.from({ length: MAX_TRACKS }, (_, i) => trackSettings(s, i + 1)).filter((t) => t.file).length;
     const remaining = s.countdown !== false;
@@ -212,7 +212,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     if (active.length === 0) {
       view = { label, group: normGroup(s.group), state: "idle", tracks: configured, loop: !!s.loop };
     } else {
-      // l'affichage suit la piste qui dure le plus longtemps (hors boucle si possible)
+      // the display follows the longest track (non-looping if possible)
       const measured = active.filter((p) => p.dur > 0);
       const finite = measured.filter((p) => !p.settings.loop);
       const ref = (finite.length ? finite : measured).sort((a, b) => b.dur - b.pos - (a.dur - a.pos))[0];
@@ -225,7 +225,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
         progress: ref ? ref.pos / ref.dur : 0,
       };
     }
-    // ne renvoie l'image que si l'affichage a changé (temps à la seconde, barre au pixel)
+    // only resend the image when the display changed (time to the second, bar to the pixel)
     const sig = JSON.stringify({ ...view, progress: Math.round((view.progress ?? 0) * 60) });
     if (this.#lastView.get(id) === sig) return;
     this.#lastView.set(id, sig);

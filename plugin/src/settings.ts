@@ -9,37 +9,37 @@ export type PlaySettings = {
   /** secondes */
   fadeIn?: number;
   fadeOut?: number;
-  /** points de découpe en secondes (chaîne saisie dans l'inspecteur) */
+  /** trim points in seconds (string typed in the inspector) */
   trimIn?: string | number;
   trimOut?: string | number;
-  /** comportement d'un appui pendant la lecture */
+  /** behavior of a key press during playback */
   mode?: "stop" | "pause" | "restart";
   group?: string;
   stopOthers?: boolean;
-  /** true = temps restant, false = temps écoulé */
+  /** true = time remaining, false = time elapsed */
   countdown?: boolean;
-  /** pistes 2 à 6 : reprennent le réglage correspondant de la piste 1 (maître) */
+  /** tracks 2 to 6: take the matching setting from track 1 (master) */
   linkCut?: boolean;
   linkFades?: boolean;
   linkVolume?: boolean;
-  /** saisie d'un nouveau groupe dans l'inspecteur : devient `group` puis est vidé */
+  /** new group typed in the inspector: becomes `group`, then is cleared */
   newGroup?: string;
-  /** pistes 2 à 6 : mêmes champs que la piste 1 avec le numéro en suffixe (file2, output2, volume2…) */
+  /** tracks 2 to 6: same fields as track 1 with the number as a suffix (file2, output2, volume2…) */
   [key: string]: string | number | boolean | string[] | undefined;
 };
 
 export const MAX_TRACKS = 6;
-/** `outputs` : sorties cochées de la piste (tableau). `output` / `xout1..3` : ancien format, encore lu s'il n'y a pas de `outputs`. */
+/** `outputs`: checked outputs of the track (array). `output` / `xout1..3`: legacy format, still read when there is no `outputs`. */
 const TRACK_FIELDS = ["file", "output", "outputs", "xout1", "xout2", "xout3", "volume", "fadeIn", "fadeOut", "trimIn", "trimOut", "loop"] as const;
 
-/** Champs qu'une piste esclave prend à la piste 1 quand la liaison est active. */
+/** Fields a slave track takes from track 1 when the link is active. */
 const LINKS: [flag: "linkCut" | "linkFades" | "linkVolume", fields: string[]][] = [
   ["linkCut", ["trimIn", "trimOut"]],
   ["linkFades", ["fadeIn", "fadeOut"]],
   ["linkVolume", ["volume"]],
 ];
 
-/** Réglages effectifs de la piste n (1 = champs sans suffixe), fusionnés avec les réglages communs de la touche. */
+/** Effective settings of track n (1 = fields without suffix), merged with the key's shared settings. */
 export function trackSettings(s: PlaySettings, n: number): PlaySettings {
   const merged: PlaySettings = { ...s };
   for (const f of TRACK_FIELDS) (merged as Record<string, unknown>)[f] = s[n === 1 ? f : f + n];
@@ -52,7 +52,7 @@ export function trackSettings(s: PlaySettings, n: number): PlaySettings {
 }
 
 export type VolumeSettings = {
-  /** "*" = général, sinon nom de groupe */
+  /** "*" = master, otherwise a group name */
   target?: string;
   step?: number;
   mode?: "up" | "down" | "mute" | "set";
@@ -60,7 +60,7 @@ export type VolumeSettings = {
 };
 
 export type StopAllSettings = {
-  /** nom affiché sur la touche (permet plusieurs boutons d'arrêt distincts) */
+  /** name shown on the key (lets you have several distinct stop buttons) */
   label?: string;
   group?: string;
   mode?: "fade" | "cut";
@@ -75,8 +75,8 @@ export const seconds = (v: string | number | undefined): number => {
 export type SeekSettings = {
   group?: string;
   direction?: "forward" | "back";
-  /** saut d'un appui de touche (s) */
+  /** skip of one key press (s) */
   seconds?: number;
-  /** saut par cran de cadran (s) */
+  /** skip per dial notch (s) */
   dialStep?: number;
 };

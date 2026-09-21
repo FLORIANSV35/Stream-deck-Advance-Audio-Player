@@ -1,6 +1,6 @@
-//! saap-engine : moteur audio du plugin Stream Deck SAAP.
-//! Protocole : une commande JSON par ligne sur stdin, un évènement JSON par ligne sur stdout
-//! (le même que le moteur macOS, `engine/src/main.m`).
+//! saap-engine: audio engine of the SAAP Stream Deck plugin.
+//! Protocol: one JSON command per line on stdin, one JSON event per line on stdout
+//! (the same as the macOS engine, `engine/src/main.m`).
 
 mod audio;
 mod voice;
@@ -68,9 +68,9 @@ impl Engine {
         }
     }
 
-    /// Lance plusieurs lectures sur un même instant audible.
+    /// Starts several playbacks at the same audible instant.
     fn start_batch(&mut self, items: &[Value]) {
-        // décode d'abord chaque fichier une seule fois, en parallèle
+        // first decode each file once, in parallel
         let mut files: Vec<&str> = items.iter().filter_map(|c| c.get("file").and_then(Value::as_str)).collect();
         files.sort_unstable();
         files.dedup();
@@ -81,7 +81,7 @@ impl Engine {
                 });
             }
         });
-        // les flux démarrent en silence, avec un départ « lointain » ; on fixe l'instant commun quand tous tournent
+        // streams start silent, with a "far" start; the common instant is set once all of them are running
         let far = Instant::now() + Duration::from_secs(30);
         let mut started = Vec::new();
         for c in items {
@@ -95,7 +95,7 @@ impl Engine {
                 Err(m) => Self::fail(id, m),
             }
         }
-        // attend que chaque périphérique ait réellement démarré (une interface USB peut prendre quelques dizaines de ms)
+        // waits until each device has really started (a USB interface can take a few tens of ms)
         let deadline = Instant::now() + Duration::from_millis(1500);
         while Instant::now() < deadline
             && started.iter().any(|(id, _)| self.voices.get(id).is_some_and(|v| !v.is_running()))
@@ -120,7 +120,7 @@ impl Engine {
             .unwrap_or_default()
     }
 
-    /// Déplace / reprend plusieurs lectures ensemble : toutes repartent de la position de la première, au même instant.
+    /// Moves / resumes several playbacks together: all restart from the position of the first one, at the same instant.
     fn seek_many(&self, ids: &[String], c: &Value, resume: bool) {
         let Some(first) = ids.first().and_then(|id| self.voices.get(id)) else { return };
         let target = match c.get("to").and_then(Value::as_f64) {
@@ -202,7 +202,7 @@ impl Engine {
                     let (file, n) = (file.to_string(), num(&c, "n", 600.0) as usize);
                     std::thread::spawn(move || match audio::load(&file) {
                         Ok(d) => emit(json!({"evt": "peaks", "req": req, "duration": d.frames as f64 / d.rate, "peaks": audio::peaks(&d, n)})),
-                        Err(_) => emit(json!({"evt": "peaks", "req": req, "error": "Fichier illisible"})),
+                        Err(_) => emit(json!({"evt": "peaks", "req": req, "error": "Unreadable file"})),
                     });
                 }
             }
@@ -226,7 +226,7 @@ impl Engine {
         true
     }
 
-    /// Retire les lectures terminées et prévient le plugin.
+    /// Removes finished playbacks and notifies the plugin.
     fn tick(&mut self) {
         let done: Vec<(String, Reason)> = self.voices.iter().filter_map(|(id, v)| v.finished().map(|r| (id.clone(), r))).collect();
         for (id, reason) in done {
@@ -251,7 +251,7 @@ fn main() {
                 return;
             }
         }
-        // stdin fermé : le plugin est parti, `tx` est libéré et la boucle principale s'arrête
+        // stdin closed: the plugin is gone, `tx` is dropped and the main loop stops
     });
 
     let mut engine = Engine { voices: HashMap::new(), epoch: Instant::now() };

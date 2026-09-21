@@ -5,7 +5,7 @@
   "Name": "SAAP Audio",
   "Version": "0.2.0.0",
   "Author": "SAAP",
-  "Description": "Lecteur audio avancé : plusieurs lectures simultanées, fondus, découpe, volume live, choix de l'interface et des sorties par fichier.",
+  "Description": "Advanced audio player: several synchronized tracks per key, fades, trim points on a waveform, live volume, and a choice of audio interface and outputs per file.",
   "Category": "SAAP Audio",
   "CategoryIcon": "imgs/category",
   "Icon": "imgs/plugin",
@@ -30,8 +30,8 @@
   "Actions": [
     {
       "UUID": "com.saap.audio.play",
-      "Name": "Lire un son",
-      "Tooltip": "Lit un fichier audio (fondus, découpe, sortie au choix, volume live).",
+      "Name": "Play sound",
+      "Tooltip": "Plays audio files (fades, trim points, choice of outputs, live volume).",
       "Icon": "imgs/actions/play",
       "Controllers": [
         "Keypad"
@@ -47,7 +47,7 @@
     {
       "UUID": "com.saap.audio.volume",
       "Name": "Volume",
-      "Tooltip": "Règle le volume général ou d'un groupe de sons, en direct.",
+      "Tooltip": "Adjusts the master volume or the volume of a group of sounds, live.",
       "Icon": "imgs/actions/volume",
       "Controllers": [
         "Keypad",
@@ -71,8 +71,8 @@
     },
     {
       "UUID": "com.saap.audio.seek",
-      "Name": "Avancer / reculer",
-      "Tooltip": "Avance ou recule dans les lectures en cours (touche : saut fixe, cadran : défilement).",
+      "Name": "Skip forward / back",
+      "Tooltip": "Skips forward or back in the running playbacks (key: fixed skip, dial: scrub).",
       "Icon": "imgs/actions/seek",
       "Controllers": [
         "Keypad",
@@ -88,16 +88,16 @@
       "Encoder": {
         "layout": "$B1",
         "TriggerDescription": {
-          "Rotate": "Avancer / reculer",
-          "Push": "Pause / reprise",
-          "Touch": "Pause / reprise"
+          "Rotate": "Skip forward / back",
+          "Push": "Pause / resume",
+          "Touch": "Pause / resume"
         }
       }
     },
     {
       "UUID": "com.saap.audio.stopall",
-      "Name": "Tout arrêter",
-      "Tooltip": "Arrête toutes les lectures, ou celles d'un groupe.",
+      "Name": "Stop all",
+      "Tooltip": "Stops all playbacks, or those of one group.",
       "Icon": "imgs/actions/stop",
       "Controllers": [
         "Keypad"

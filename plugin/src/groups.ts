@@ -2,14 +2,14 @@ import streamDeck from "@elgato/streamdeck";
 import type { JsonValue } from "@elgato/utils";
 import { mixer } from "./mixer.js";
 
-/** Valeurs spéciales des menus : "none" (aucun groupe) et "*" (tous / général) valent « pas de groupe ». */
+/** Special menu values: "none" (no group) and "*" (all / master) both mean "no group". */
 export const normGroup = (g: unknown): string => (typeof g !== "string" || g === "none" || g === "*" ? "" : g);
 
-/** Menus déroulants de groupes de l'inspecteur : chaque action a sa première entrée. */
+/** Group dropdowns of the inspector: each action has its own first entry. */
 const FIRST_ENTRY: Record<string, { label: string; value: string }> = {
-  getGroupsPlay: { label: "— Aucun groupe —", value: "none" },
-  getGroupsVolume: { label: "Général (tous les sons)", value: "*" },
-  getGroupsStop: { label: "Tous les sons", value: "*" },
+  getGroupsPlay: { label: "— No group —", value: "none" },
+  getGroupsVolume: { label: "Master (all sounds)", value: "*" },
+  getGroupsStop: { label: "All sounds", value: "*" },
 };
 
 export const isGroupsEvent = (event: unknown): event is string => typeof event === "string" && event in FIRST_ENTRY;

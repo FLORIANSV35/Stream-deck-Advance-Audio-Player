@@ -1,4 +1,4 @@
-// Rendu des touches : SVG 144×144 avec un système visuel commun (fond dégradé, anneau, palette unique).
+// Key rendering: 144×144 SVG with a shared visual system (gradient background, ring, single palette).
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 const uri = (svg: string) => `data:image/svg+xml;charset=utf8,${encodeURIComponent(svg)}`;
@@ -19,7 +19,7 @@ type Accent = readonly [string, string];
 const FONT = `-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif`;
 const MONO = `'SF Mono', Menlo, monospace`;
 
-/** Cadre commun : fond dégradé, liseré clair en haut, dégradés d'accent. */
+/** Shared frame: gradient background, light top edge, accent gradients. */
 const frame = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 144 144">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${C.bgTop}"/><stop offset="1" stop-color="${C.bgBottom}"/></linearGradient>
@@ -35,9 +35,9 @@ const frame = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox
 const text = (x: number, y: number, size: number, fill: string, s: string, o: { weight?: number; mono?: boolean; spacing?: number; fit?: number } = {}) =>
   `<text x="${x}" y="${y}" font-size="${size}" font-weight="${o.weight ?? 500}" fill="${fill}" text-anchor="middle" font-family="${o.mono ? MONO : FONT}" letter-spacing="${o.spacing ?? 0}"${o.fit ? ` textLength="${o.fit}" lengthAdjust="spacingAndGlyphs"` : ""}>${esc(s)}</text>`;
 
-/** Nom en gros en haut de la touche : la taille s'adapte à la longueur, puis le texte est resserré (jusqu'à 30 %) avant d'être tronqué. */
+/** Large name at the top of the key: the size adapts to the length, then the text is squeezed (up to 30 %) before being truncated. */
 function title(label: string, y = 29, base = 25): string {
-  const W = 132, K = 0.56; // largeur dispo, largeur moyenne d'un caractère (en fraction de la taille)
+  const W = 132, K = 0.56; // available width, average character width (as a fraction of the size)
   let size = base;
   while (size > 18 && label.length * K * size > W) size -= 1;
   const shown = clip(label, Math.max(4, Math.floor((W * 1.3) / (K * size))));
@@ -45,7 +45,7 @@ function title(label: string, y = 29, base = 25): string {
   return text(72, y, size, C.text, shown, { weight: 700, fit: squeeze ? W : undefined });
 }
 
-/** Anneau de progression centré en (72, 78). */
+/** Progress ring centered at (72, 78). */
 const RING_R = 39;
 const RING_C = 2 * Math.PI * RING_R;
 const ring = (progress: number, grad: string) => `
@@ -56,12 +56,12 @@ const ring = (progress: number, grad: string) => `
 export interface PlayView {
   label: string;
   state: "idle" | "playing" | "paused";
-  /** texte central quand une lecture est active */
+  /** center text while a playback is active */
   time?: string;
   /** 0-1 */
   progress?: number;
   group?: string;
-  /** nombre de pistes configurées */
+  /** number of configured tracks */
   tracks?: number;
   loop?: boolean;
 }
@@ -74,9 +74,9 @@ export function playKey(v: PlayView): string {
   const center = active
     ? text(72, 84, 21, v.state === "paused" ? C.amber[0] : C.text, v.time ?? "", { weight: 600, mono: true, spacing: -0.5 })
     : `<path d="M62 62 L62 94 L90 78 Z" fill="url(#g)" stroke="url(#g)" stroke-width="5" stroke-linejoin="round"/>`;
-  // mention sous le temps : PAUSE (ambre) ou BOUCLE
+  // caption under the time: PAUSE (amber) or LOOP
   const hint = v.state === "paused" ? text(72, 103, 11, C.amber[1], "PAUSE", { weight: 700, spacing: 1.5 })
-    : active && v.loop ? text(72, 103, 11, C.muted, "BOUCLE", { weight: 700, spacing: 1.5 }) : "";
+    : active && v.loop ? text(72, 103, 11, C.muted, "LOOP", { weight: 700, spacing: 1.5 }) : "";
 
   return uri(frame(`
     ${title(v.label)}
@@ -96,7 +96,7 @@ export function volumeKey(o: { target: string; icon: "up" | "down" | "mute" | "s
   }[o.icon];
   const level = o.muted ? 0 : o.pct / 100;
   return uri(frame(`
-    ${text(72, 24, 16, C.muted, clip(o.target === "*" ? "GÉNÉRAL" : o.target.toUpperCase(), 12), { weight: 600, spacing: 1.2 })}
+    ${text(72, 24, 16, C.muted, clip(o.target === "*" ? "MASTER" : o.target.toUpperCase(), 12), { weight: 600, spacing: 1.2 })}
     <g transform="translate(${o.icon === "mute" ? -6 : 0} ${o.icon === "mute" ? 0 : -2})">${glyph}</g>
     ${text(72, 112, 30, o.muted ? C.red[0] : C.text, o.muted ? "MUTE" : `${o.pct}%`, { weight: 700, mono: true, spacing: -0.5 })}
     <rect x="22" y="123" width="100" height="6" rx="3" fill="${C.faint}"/>
@@ -106,13 +106,13 @@ export function volumeKey(o: { target: string; icon: "up" | "down" | "mute" | "s
 
 export function stopKey(o: { label: string; group?: string; mode?: "fade" | "cut"; fade?: number }): string {
   const cut = o.mode === "cut";
-  // coupure : anneau plein ; fondu : anneau qui s'efface
+  // cut: full ring; fade: ring that fades out
   const rim = cut
     ? `<circle cx="72" cy="80" r="${RING_R}" fill="none" stroke="url(#r)" stroke-width="7"/>`
     : `<circle cx="72" cy="80" r="${RING_R}" fill="none" stroke="${C.faint}" stroke-width="7"/>
        <circle cx="72" cy="80" r="${RING_R}" fill="none" stroke="url(#r)" stroke-width="7" stroke-linecap="round"
          stroke-dasharray="${(0.62 * RING_C).toFixed(1)} ${RING_C.toFixed(1)}" transform="rotate(-90 72 80)" opacity="0.9"/>`;
-  const footer = [o.group, cut ? "coupure" : o.group ? "fondu" : `fondu ${o.fade ?? 1.5} s`].filter(Boolean).join("  ·  ");
+  const footer = [o.group, cut ? "cut" : o.group ? "fade" : `fade ${o.fade ?? 1.5} s`].filter(Boolean).join("  ·  ");
   return uri(frame(`
     ${title(o.label)}
     ${rim}
@@ -126,7 +126,7 @@ export function seekKey(o: { dir: 1 | -1; seconds: number; group: string }): str
     `<path d="M${x} 58 L${x + (o.dir > 0 ? 16 : -16)} 76 L${x} 94" fill="none" stroke="url(#b)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`;
   const glyph = o.dir > 0 ? chevron(52) + chevron(78) : chevron(92) + chevron(66);
   return uri(frame(`
-    ${text(72, 24, 16, C.muted, clip((o.group || "TOUS LES SONS").toUpperCase(), 14), { weight: 600, spacing: 1.2 })}
+    ${text(72, 24, 16, C.muted, clip((o.group || "ALL SOUNDS").toUpperCase(), 14), { weight: 600, spacing: 1.2 })}
     ${glyph}
     ${text(72, 124, 26, C.text, `${o.dir > 0 ? "+" : "−"}${o.seconds} s`, { weight: 700, mono: true, spacing: -0.5 })}
   `));

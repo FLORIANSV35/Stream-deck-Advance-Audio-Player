@@ -2,7 +2,7 @@
 node_modules/
 logs/
 engine/.build/
-# binaires générés (voir README : ./engine/build.sh et npm run build)
+# generated binaries (see README: ./engine/build.sh and npm run build)
 plugin/com.saap.audio.sdPlugin/bin/plugin.js
 plugin/com.saap.audio.sdPlugin/bin/saap-engine
 plugin/com.saap.audio.sdPlugin/bin/saap-engine.exe

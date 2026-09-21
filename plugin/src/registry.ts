@@ -10,7 +10,7 @@ export interface Playback {
   dur: number;
 }
 
-/** Lectures en cours, indexées par l'identifiant de l'action (touche) qui les a lancées. */
+/** Running playbacks, indexed by the id of the action (key) that started them. */
 export const playbacks = new Map<string, Playback>();
 
 export const gainFor = (s: PlaySettings): number => toGain(s.volume ?? 100) * mixer.gainFor(s.group);
@@ -18,7 +18,7 @@ export const gainFor = (s: PlaySettings): number => toGain(s.volume ?? 100) * mi
 export const inGroup = (p: Playback, group: string | undefined): boolean =>
   !group || (p.settings.group ?? "") === group;
 
-/** Ré-applique le volume effectif (touche × groupe × général) à toutes les lectures. */
+/** Re-applies the effective volume (key × group × master) to all playbacks. */
 export function applyGains(): void {
   for (const p of playbacks.values()) engine.volume(p.id, gainFor(p.settings));
 }

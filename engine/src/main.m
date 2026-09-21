@@ -1,13 +1,13 @@
-// saap-engine : moteur audio pour le plugin Stream Deck SAAP.
-// Protocole : une commande JSON par ligne sur stdin, un évènement JSON par ligne sur stdout.
-// Chaque lecture = un AVAudioEngine dédié, lié à un périphérique et à des canaux de sortie.
+// saap-engine: audio engine for the SAAP Stream Deck plugin.
+// Protocol: one JSON command per line on stdin, one JSON event per line on stdout.
+// Each playback = a dedicated AVAudioEngine, bound to one device and to specific output channels.
 
 #import <AVFoundation/AVFoundation.h>
 #import <CoreAudio/CoreAudio.h>
 #import <AudioToolbox/AudioToolbox.h>
 #include <mach/mach_time.h>
 
-#pragma mark - Sortie JSON
+#pragma mark - JSON output
 
 static NSLock *outLock;
 static void emit(NSDictionary *obj) {
@@ -20,7 +20,7 @@ static void emit(NSDictionary *obj) {
     [outLock unlock];
 }
 
-#pragma mark - Périphériques
+#pragma mark - Devices
 
 static AudioObjectPropertyAddress addr(AudioObjectPropertySelector sel, AudioObjectPropertyScope scope) {
     return (AudioObjectPropertyAddress){ sel, scope, kAudioObjectPropertyElementMain };
@@ -46,7 +46,7 @@ static int outputChannelCount(AudioDeviceID dev) {
     return n;
 }
 
-// [{id, uid, name, channels}] des périphériques ayant au moins une sortie
+// [{id, uid, name, channels}] of the devices that have at least one output
 static NSArray<NSDictionary *> *outputDevices(void) {
     AudioObjectPropertyAddress a = addr(kAudioHardwarePropertyDevices, kAudioObjectPropertyScopeGlobal);
     UInt32 size = 0;
@@ -106,10 +106,10 @@ static int defaultDeviceChannels(void) {
     BOOL _loop, _closed, _fadingOut;
     double _autoFadeOut, _lastPos;
     int _pending;
-    int _gen;             // change à chaque déplacement : ignore les fins de segments périmés
-    double _baseOffset;   // position (dans la découpe) à laquelle la planification courante a commencé
+    int _gen;             // changes on every seek: ignores the ends of stale segments
+    double _baseOffset;   // position (within the trim) at which the current scheduling started
     float _gain, _curGain, _fade;
-    // rampe de fondu
+    // fade ramp
     BOOL _hasRamp, _rampStop;
     float _rampFrom, _rampTo;
     double _rampT0, _rampDur;
@@ -129,14 +129,14 @@ static double num(NSDictionary *c, NSString *k, double d) {
     _url = [NSURL fileURLWithPath:path];
     NSError *e = nil;
     AVAudioFile *file = [[AVAudioFile alloc] initForReading:_url error:&e];
-    if (!file) { *err = [NSString stringWithFormat:@"Fichier illisible : %@", path]; return nil; }
+    if (!file) { *err = [NSString stringWithFormat:@"Unreadable file: %@", path]; return nil; }
 
     _rate = file.processingFormat.sampleRate;
     AVAudioFramePosition total = file.length;
     _start = MIN(MAX(0, (AVAudioFramePosition)(num(c, @"trimIn", 0) * _rate)), total);
     double tout = num(c, @"trimOut", 0);
     _end = tout > 0 ? MIN(total, (AVAudioFramePosition)(tout * _rate)) : total;
-    if (_end <= _start) { *err = @"Points de découpe invalides"; return nil; }
+    if (_end <= _start) { *err = @"Invalid trim points"; return nil; }
     _duration = (double)(_end - _start) / _rate;
     _loop = [c[@"loop"] boolValue];
     _autoFadeOut = num(c, @"fadeOut", 0);
@@ -147,15 +147,15 @@ static double num(NSDictionary *c, NSString *k, double d) {
     _player = [AVAudioPlayerNode new];
     AVAudioOutputNode *out = _engine.outputNode;
 
-    // Périphérique de sortie
+    // Output device
     NSString *uid = c[@"device"] ?: @"default";
     int devChannels;
     if (![uid isEqualToString:@"default"]) {
         NSDictionary *found = nil;
         for (NSDictionary *d in outputDevices()) if ([d[@"uid"] isEqualToString:uid]) { found = d; break; }
-        if (!found) { *err = [NSString stringWithFormat:@"Périphérique introuvable : %@", uid]; return nil; }
+        if (!found) { *err = [NSString stringWithFormat:@"Device not found: %@", uid]; return nil; }
         if (![out.AUAudioUnit setDeviceID:[found[@"id"] unsignedIntValue] error:&e]) {
-            *err = [NSString stringWithFormat:@"Impossible d'utiliser %@", found[@"name"]]; return nil;
+            *err = [NSString stringWithFormat:@"Cannot use %@", found[@"name"]]; return nil;
         }
         devChannels = [found[@"channels"] intValue];
     } else {
@@ -167,8 +167,8 @@ static double num(NSDictionary *c, NSString *k, double d) {
     double devRate = [out outputFormatForBus:0].sampleRate;
     [_engine connect:_player to:mixer format:file.processingFormat];
 
-    // Routage vers des canaux précis : le mixeur sort en stéréo, la channel map de l'unité de sortie
-    // place les 2 canaux (ou 1 seul en mono) sur les canaux choisis du périphérique.
+    // Routing to specific channels: the mixer outputs stereo, and the output unit's channel map
+    // places the 2 channels (or just 1 in mono) on the chosen channels of the device.
     int channel = (int)num(c, @"channel", 0);
     BOOL mono = [c[@"mono"] boolValue];
     if (devChannels > 2 || channel != 0 || mono) {
@@ -186,14 +186,14 @@ static double num(NSDictionary *c, NSString *k, double d) {
     if (fadeIn > 0) { _fade = 0; [self startRampTo:1 dur:fadeIn stop:NO]; }
     _player.volume = _curGain * _fade;
 
-    for (int i = 0; i < (_loop ? 2 : 1); i++) if (![self scheduleFrom:0]) { *err = @"Lecture du fichier impossible"; return nil; }
+    for (int i = 0; i < (_loop ? 2 : 1); i++) if (![self scheduleFrom:0]) { *err = @"Cannot read the file"; return nil; }
     if (![_engine startAndReturnError:&e]) {
-        *err = [NSString stringWithFormat:@"Démarrage audio impossible : %@", e.localizedDescription]; return nil;
+        *err = [NSString stringWithFormat:@"Cannot start audio: %@", e.localizedDescription]; return nil;
     }
     return self;
 }
 
-// Planifie la lecture de la découpe à partir de `offset` secondes (0 = début de la découpe).
+// Schedules playback of the trim starting at `offset` seconds (0 = start of the trim).
 - (BOOL)scheduleFrom:(double)offset {
     NSError *e = nil;
     AVAudioFile *f = [[AVAudioFile alloc] initForReading:_url error:&e];
@@ -233,19 +233,19 @@ static double hostDelay(uint64_t host) {
     return host > now ? [AVAudioTime secondsForHostTime:host - now] : 0;
 }
 
-// Démarre la lecture sur un instant précis de l'horloge système (0 = tout de suite).
-// C'est ce qui aligne plusieurs pistes : chaque lecteur démarre exactement à cet instant, à l'échantillon près.
+// Starts playback at an exact instant of the system clock (0 = right now).
+// This is what aligns several tracks: every player starts at exactly that instant, sample-accurately.
 - (void)playAtHostTime:(uint64_t)host {
     if (host) [_player playAtTime:[AVAudioTime timeWithHostTime:host]];
     else [_player play];
-    // le fondu d'entrée doit commencer avec le son, pas avec la préparation
+    // the fade in must start with the sound, not with the preparation
     if (_hasRamp && !_rampStop) _rampT0 = nowSec() + hostDelay(host);
 }
 
 - (double)latency { return _engine.outputNode.presentationLatency; }
 
-// Instant (horloge système, en secondes) où le premier échantillon de la lecture a été rendu, et latence de sortie.
-// Sert à mesurer le décalage entre deux lectures : différence des "start" = décalage, "emerges" tient compte de la latence.
+// Instant (system clock, in seconds) at which the first sample of the playback was rendered, and output latency.
+// Used to measure the offset between two playbacks: difference of "start" = offset, "emerges" accounts for latency.
 - (NSDictionary *)syncInfo {
     AVAudioTime *nt = _player.lastRenderTime;
     AVAudioTime *pt = nt ? [_player playerTimeForNodeTime:nt] : nil;
@@ -255,7 +255,7 @@ static double hostDelay(uint64_t host) {
     return @{ @"id": _ident, @"start": @(start), @"latency": @(lat), @"emerges": @(start + lat) };
 }
 
-// Déplace la lecture : le lecteur natif ne sait pas "sauter", on l'arrête et on replanifie depuis la nouvelle position.
+// Moves playback: the native player cannot "seek", so we stop it and reschedule from the new position.
 - (void)seekTo:(double)seconds { [self seekTo:seconds atHost:0 resume:NO]; }
 
 - (void)seekTo:(double)seconds atHost:(uint64_t)host resume:(BOOL)resume {
@@ -273,7 +273,7 @@ static double hostDelay(uint64_t host) {
     if (_loop) [self scheduleFrom:0];
     [self playAtHostTime:host];
     if (_paused) [_player pause];
-    // revenu avant la zone du fondu de fin automatique : on l'annule
+    // moved back before the automatic fade-out zone: cancel it
     if (_fadingOut && !_rampStop && seconds < _duration - _autoFadeOut) { _fadingOut = NO; _hasRamp = NO; _fade = 1; }
 }
 
@@ -312,7 +312,7 @@ static double hostDelay(uint64_t host) {
     double t = nowSec();
     if (_hasRamp) {
         float p = (float)MIN(1, MAX(0, (t - _rampT0) / _rampDur));
-        // courbes sinus/cosinus : fondu à puissance constante, sans "coup" au début ou à la fin
+        // sine/cosine curves: constant-power fade, no "click" at the start or the end
         _fade = _rampTo > _rampFrom
             ? _rampFrom + (_rampTo - _rampFrom) * sinf(p * M_PI_2)
             : _rampTo + (_rampFrom - _rampTo) * cosf(p * M_PI_2);
@@ -345,11 +345,11 @@ static double hostDelay(uint64_t host) {
 
 #pragma mark - Forme d'onde
 
-// Crête (valeur absolue max, tous canaux) de chaque tranche du fichier, pour l'affichage de la forme d'onde.
+// Peak (max absolute value, all channels) of each slice of the file, for the waveform display.
 static NSDictionary *computePeaks(NSString *path, int n, id req) {
     NSError *e = nil;
     AVAudioFile *f = [[AVAudioFile alloc] initForReading:[NSURL fileURLWithPath:path] error:&e];
-    if (!f || f.length <= 0) return @{ @"evt": @"peaks", @"req": req, @"error": @"Fichier illisible" };
+    if (!f || f.length <= 0) return @{ @"evt": @"peaks", @"req": req, @"error": @"Unreadable file" };
     n = MAX(10, MIN(n, 4000));
     AVAudioFramePosition total = f.length;
     AVAudioPCMBuffer *buf = [[AVAudioPCMBuffer alloc] initWithPCMFormat:f.processingFormat frameCapacity:65536];
@@ -374,18 +374,18 @@ static NSDictionary *computePeaks(NSString *path, int n, id req) {
     return @{ @"evt": @"peaks", @"req": req, @"duration": @((double)total / f.processingFormat.sampleRate), @"peaks": peaks };
 }
 
-#pragma mark - Contrôleur
+#pragma mark - Controller
 
 static NSMutableDictionary<NSString *, SAInstance *> *instances;
 
-// Crée la lecture (moteur prêt, pas encore lancée). nil + évènement d'erreur en cas d'échec.
+// Creates the playback (engine ready, not started yet). nil + error event on failure.
 static SAInstance *createInstance(NSDictionary *c) {
     NSString *ident = c[@"id"];
     if (![ident isKindOfClass:[NSString class]] || ![c[@"file"] isKindOfClass:[NSString class]]) return nil;
     [instances[ident] cut];
     NSString *err = nil;
     SAInstance *inst = [[SAInstance alloc] initWithCommand:c error:&err];
-    if (!inst) { emit(@{ @"evt": @"ended", @"id": ident, @"reason": @"error", @"message": err ?: @"Erreur" }); return nil; }
+    if (!inst) { emit(@{ @"evt": @"ended", @"id": ident, @"reason": @"error", @"message": err ?: @"Error" }); return nil; }
     inst.onEnded = ^(SAInstance *i, NSString *reason) {
         if (instances[i.ident] == i) [instances removeObjectForKey:i.ident];
         emit(@{ @"evt": @"ended", @"id": i.ident, @"reason": reason });
@@ -401,7 +401,7 @@ static void startInstance(NSDictionary *c) {
     emit(@{ @"evt": @"started", @"id": inst.ident, @"duration": @(inst.duration) });
 }
 
-// Instant commun de départ, avec compensation de la latence de chaque sortie : le son *sort* en même temps.
+// Common start instant, compensating each output's latency: the sound *comes out* at the same time.
 static uint64_t syncBase(double lead) { return mach_absolute_time() + [AVAudioTime hostTimeForSeconds:lead]; }
 static uint64_t syncHost(uint64_t base, NSArray<SAInstance *> *all, SAInstance *i) {
     double maxLat = 0;
@@ -409,7 +409,7 @@ static uint64_t syncHost(uint64_t base, NSArray<SAInstance *> *all, SAInstance *
     return base + [AVAudioTime hostTimeForSeconds:MAX(0, maxLat - [i latency])];
 }
 
-// Lance plusieurs lectures sur un même instant.
+// Starts several playbacks at the same instant.
 static void startBatch(NSArray *items) {
     NSMutableArray<SAInstance *> *created = [NSMutableArray array];
     for (NSDictionary *c in items) {
@@ -430,8 +430,8 @@ static NSArray<SAInstance *> *instancesFor(NSDictionary *c) {
     return list;
 }
 
-// Déplace (ou reprend après une pause) plusieurs lectures sur un même instant.
-// Toutes repartent de la position de la première : ça réaligne aussi des pistes qui auraient glissé.
+// Moves (or resumes after a pause) several playbacks at the same instant.
+// All restart from the position of the first one: this also realigns tracks that may have drifted.
 static void seekMany(NSArray<SAInstance *> *list, NSDictionary *c, BOOL resume) {
     if (list.count == 0) return;
     double target = c[@"to"] ? num(c, @"to", 0) : [list[0] position] + num(c, @"delta", 0);
@@ -487,7 +487,7 @@ int main(void) {
                 NSString *line = [[NSString alloc] initWithBytes:buf length:n encoding:NSUTF8StringEncoding];
                 if (line) dispatch_async(dispatch_get_main_queue(), ^{ handle(line); });
             }
-            exit(0); // stdin fermé : le plugin est parti
+            exit(0); // stdin closed: the plugin is gone
         }];
         [reader start];
 

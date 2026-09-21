@@ -90,7 +90,7 @@ export class VolumeAction extends SingletonAction<VolumeSettings> {
     const lvl = mixer.level(target);
     if (surface.isDial()) {
       void surface.setFeedback({
-        title: target === "*" ? "Général" : target,
+        title: target === "*" ? "Master" : target,
         value: lvl.muted ? "MUTE" : `${lvl.pct}%`,
         indicator: { value: lvl.muted ? 0 : lvl.pct },
       });
