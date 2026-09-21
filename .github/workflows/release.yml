@@ -33,6 +33,18 @@ jobs:
           $out = '{"cmd":"quit"}' | & engine-rs/target/release/saap-engine.exe
           Write-Host $out
           if ($out -notmatch '"evt":"ready"') { throw "le moteur n'a pas répondu ready" }
+      # décodage d'un fichier + liste des périphériques (le serveur de CI n'a pas forcément de carte son : la liste peut être vide)
+      - name: Test décodage et périphériques
+        shell: pwsh
+        run: |
+          python -c "import wave,struct,math; w=wave.open('t.wav','wb'); w.setnchannels(2); w.setsampwidth(2); w.setframerate(44100); w.writeframes(b''.join(struct.pack('<hh',int(8000*math.sin(i/20)),int(8000*math.sin(i/20))) for i in range(44100*2))); w.close()"
+          $wav = (Resolve-Path t.wav).Path -replace '\\','/'
+          $cmds = @('{"cmd":"devices"}', ('{"cmd":"peaks","req":1,"file":"' + $wav + '","n":10}'), '{"cmd":"peaks","req":2,"file":"absent.wav"}')
+          $out = & { $cmds; Start-Sleep 2; '{"cmd":"quit"}' } | & engine-rs/target/release/saap-engine.exe
+          $out | ForEach-Object { Write-Host $_ }
+          if (-not ($out -match '"evt":"devices"')) { throw "pas de réponse devices" }
+          if (-not ($out -match '"duration":2\.0')) { throw "forme d'onde non calculée" }
+          if (-not ($out -match '"error":"Fichier illisible"')) { throw "l'erreur de fichier absent n'est pas renvoyée" }
       - uses: actions/upload-artifact@v4
         with:
           name: engine-windows
