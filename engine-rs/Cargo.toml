@@ -9,6 +9,12 @@ cpal = "0.15"
 serde_json = "1"
 symphonia = { version = "0.5", features = ["all"] }
 
+# macOS-only: works around a cpal bug (see src/mac_devices.rs) that drops output-only devices
+# (built-in speakers, a monitor's DisplayPort audio) from device enumeration. Only exercised when
+# testing the Windows engine on a Mac; Windows itself uses cpal's separate WASAPI backend.
+[target.'cfg(target_os = "macos")'.dependencies]
+coreaudio-sys = "0.2"
+
 [profile.release]
 opt-level = 3
 lto = true

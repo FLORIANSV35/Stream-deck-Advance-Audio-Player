@@ -42,6 +42,20 @@ pub struct DevInfo {
 }
 
 /// Output devices. The identifier is the name (suffixed " (2)"… when duplicated).
+///
+/// macOS goes through `mac_devices` instead of cpal's own `output_devices()`: cpal's CoreAudio
+/// backend has a bug that drops any output-only device (built-in speakers, a monitor's
+/// DisplayPort audio) from that list — see mac_devices.rs for the full explanation. Windows uses
+/// cpal's separate WASAPI backend, which isn't affected.
+#[cfg(target_os = "macos")]
+pub fn list_devices() -> Vec<DevInfo> {
+    crate::mac_devices::output_devices()
+        .into_iter()
+        .map(|d| DevInfo { uid: d.uid, name: d.name, channels: d.channels })
+        .collect()
+}
+
+#[cfg(not(target_os = "macos"))]
 pub fn list_devices() -> Vec<DevInfo> {
     let host = cpal::default_host();
     let mut result: Vec<DevInfo> = Vec::new();
@@ -60,6 +74,22 @@ pub fn list_devices() -> Vec<DevInfo> {
     result
 }
 
+#[cfg(target_os = "macos")]
+fn find_device(uid: &str) -> Result<cpal::Device, String> {
+    let host = cpal::default_host();
+    if uid == "default" {
+        return host.default_output_device().ok_or_else(|| "No default audio output".to_string());
+    }
+    let native = crate::mac_devices::output_devices();
+    let target = native.iter().find(|d| d.uid == uid).ok_or_else(|| format!("Device not found: {uid}"))?;
+    // same HAL property, same order, as mac_devices' own raw enumeration — pick the matching
+    // cpal Device by position rather than by name (a name doesn't round-trip through cpal's
+    // buggy `output_devices()`, but the unfiltered `devices()` list carries every device cpal
+    // knows about, in the same order CoreAudio reports them).
+    host.devices().map_err(|e| e.to_string())?.nth(target.raw_index).ok_or_else(|| format!("Device not found: {uid}"))
+}
+
+#[cfg(not(target_os = "macos"))]
 fn find_device(uid: &str) -> Result<cpal::Device, String> {
     let host = cpal::default_host();
     if uid == "default" {
@@ -266,9 +296,24 @@ impl Voice {
     /// `gate`: audible start instant (None = right away).
     pub fn new(id: &str, data: Arc<AudioData>, p: &Params, gate: Option<Instant>) -> Result<Voice, String> {
         let device = find_device(&p.device)?;
-        let config = device.default_output_config().map_err(|e| format!("Unusable output: {e}"))?;
-        let format = config.sample_format();
-        let stream_config: StreamConfig = config.config();
+        // macOS: derive the config from CoreAudio directly rather than cpal's
+        // `default_output_config()`, which hits the same enumeration bug as list_devices() (see
+        // mac_devices.rs) for any output-only device. Building the stream itself is unaffected.
+        #[cfg(target_os = "macos")]
+        let (format, stream_config): (SampleFormat, StreamConfig) = {
+            let (channels, rate) = if p.device == "default" {
+                crate::mac_devices::default_device_config()
+            } else {
+                crate::mac_devices::output_devices().into_iter().find(|d| d.uid == p.device).map(|d| (d.channels, d.sample_rate))
+            }
+            .ok_or_else(|| "Unusable output: device not found".to_string())?;
+            (SampleFormat::F32, StreamConfig { channels: channels as u16, sample_rate: cpal::SampleRate(rate as u32), buffer_size: cpal::BufferSize::Default })
+        };
+        #[cfg(not(target_os = "macos"))]
+        let (format, stream_config): (SampleFormat, StreamConfig) = {
+            let config = device.default_output_config().map_err(|e| format!("Unusable output: {e}"))?;
+            (config.sample_format(), config.config())
+        };
         let out_rate = stream_config.sample_rate.0 as f64;
 
         let src_rate = data.rate;
