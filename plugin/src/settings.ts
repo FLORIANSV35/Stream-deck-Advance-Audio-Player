@@ -15,6 +15,8 @@ export type PlaySettings = {
   /** loop sub-range within the trim, in seconds; unset/0 = loop the whole trim (string typed in the inspector) */
   loopIn?: string | number;
   loopOut?: string | number;
+  /** fade out approaching loopOut, mirrored as a fade in just after loopIn, on every wrap (s) */
+  loopFade?: string | number;
   /** behavior of a key press during playback */
   mode?: "stop" | "pause" | "restart";
   group?: string;
@@ -36,13 +38,13 @@ export const MAX_TRACKS = 6;
 /** `outputs`: checked outputs of the track (array). `output` / `xout1..3`: legacy format, still read when there is no `outputs`. */
 const TRACK_FIELDS = [
   "file", "output", "outputs", "xout1", "xout2", "xout3", "volume",
-  "fadeIn", "fadeOut", "trimIn", "trimOut", "loop", "loopIn", "loopOut",
+  "fadeIn", "fadeOut", "trimIn", "trimOut", "loop", "loopIn", "loopOut", "loopFade",
 ] as const;
 
 /** Fields a slave track takes from track 1 when the link is active. */
 const LINKS: [flag: "linkCut" | "linkFades" | "linkVolume" | "linkLoop", fields: string[]][] = [
   ["linkCut", ["trimIn", "trimOut"]],
-  ["linkFades", ["fadeIn", "fadeOut"]],
+  ["linkFades", ["fadeIn", "fadeOut", "loopFade"]],
   ["linkVolume", ["volume"]],
   ["linkLoop", ["loopIn", "loopOut"]],
 ];

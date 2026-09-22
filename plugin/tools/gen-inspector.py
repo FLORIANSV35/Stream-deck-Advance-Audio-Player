@@ -51,6 +51,7 @@ def track_fields(n):
     out += item("Loop", f'<sdpi-checkbox setting="{k("loop")}" label="Loop playback"></sdpi-checkbox>')
     out += item("Loop in (s)", f'<sdpi-textfield setting="{k("loopIn")}" placeholder="0 = start of trim" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', f' data-loopfield="{n}"' + link("loop"))
     out += item("Loop out (s)", f'<sdpi-textfield setting="{k("loopOut")}" placeholder="0 = end of trim" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', f' data-loopfield="{n}"' + link("loop"))
+    out += item("Loop fade (s)", f'<sdpi-range setting="{k("loopFade")}" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range>', f' data-loopfield="{n}"' + link("fades"))
     return out
 
 def play():

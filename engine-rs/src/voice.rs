@@ -30,6 +30,8 @@ pub struct Params {
     /// loop sub-range within the trim, in seconds; 0/unset falls back to the full trim range
     pub loop_in: f64,
     pub loop_out: f64,
+    /// fade out approaching loop_out, mirrored as a fade in just after loop_in, on every wrap (seconds)
+    pub loop_fade: f64,
 }
 
 pub struct DevInfo {
@@ -104,6 +106,11 @@ struct State {
     /// true once "exit loop" was requested: the next time playback reaches `loop_out` it continues
     /// straight into the outro (towards `end`) instead of wrapping back to `loop_in`
     exiting: bool,
+    /// seconds of fade approaching loop_out / following loop_in, on every wrap (0 = no fade, instant wrap)
+    loop_fade: f64,
+    /// true once the first wrap has happened: distinguishes "intro passing through loop_in on its way to
+    /// loop_out" (no fade-in wanted) from "just wrapped back to loop_in" (fade-in wanted)
+    wrapped_once: bool,
     paused: bool,
     /// silence until this (audible) instant: this is what aligns several playbacks
     gate: Option<Instant>,
@@ -171,6 +178,7 @@ impl State {
             if self.pos >= wrap_at {
                 if looping_now {
                     self.pos = self.loop_in + (self.pos - self.loop_out);
+                    self.wrapped_once = true;
                 } else {
                     self.finished = Some(Reason::Finished);
                     break;
@@ -207,8 +215,26 @@ impl State {
                     auto = (p * FRAC_PI_2).cos();
                 }
             }
+            // fade approaching the wrap point, mirrored just after it — masks the click of a non-zero-
+            // crossing loop point. Purely a function of position (like `auto` above), not a stateful ramp,
+            // so it stays correct regardless of exactly when a wrap happened.
+            let mut loop_env = 1.0f32;
+            if looping_now && self.loop_fade > 0.0 {
+                let to_wrap = (self.loop_out - self.pos) / self.src_rate;
+                if to_wrap <= self.loop_fade {
+                    let p = (1.0 - (to_wrap / self.loop_fade).max(0.0)) as f32;
+                    loop_env = (p * FRAC_PI_2).cos();
+                }
+                if self.wrapped_once {
+                    let since_in = (self.pos - self.loop_in) / self.src_rate;
+                    if (0.0..=self.loop_fade).contains(&since_in) {
+                        let p = (since_in / self.loop_fade) as f32;
+                        loop_env = loop_env.min((p * FRAC_PI_2).sin());
+                    }
+                }
+            }
             self.cur_gain += (self.gain - self.cur_gain) * smooth;
-            let g = self.cur_gain * self.fade * auto;
+            let g = self.cur_gain * self.fade * auto * loop_env;
 
             let base = i * channels;
             if channels == 1 {
@@ -260,6 +286,8 @@ impl Voice {
             loop_in = start;
             loop_out = end;
         }
+        // clamp so the fade-out and fade-in zones never overlap: the loop always has a moment at full volume
+        let loop_fade = p.loop_fade.max(0.0).min((loop_out - loop_in) / src_rate / 2.0);
         let gain = p.volume.clamp(0.0, 1.0);
         let mut state = State {
             data,
@@ -273,6 +301,8 @@ impl Voice {
             loop_in,
             loop_out,
             exiting: false,
+            loop_fade,
+            wrapped_once: false,
             paused: false,
             gate,
             gain,
