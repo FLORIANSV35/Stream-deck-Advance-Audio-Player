@@ -1,4 +1,4 @@
-# SAAP Audio — advanced audio player for Stream Deck
+# SAAP — advanced audio player for Stream Deck
 
 Play several audio files at once from a single key, send each one to the audio interface and outputs you choose,
 and control it live. Works on **macOS** and **Windows** (Windows is in beta).
