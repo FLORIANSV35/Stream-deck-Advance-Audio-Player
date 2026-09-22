@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Set loop point</title>
+  <script src="sdpi-components.js"></script>
+  <link rel="stylesheet" href="saap.css" />
+</head>
+<body>
+  <header class="hero"><svg viewBox="0 0 36 36"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#22c55e"/></linearGradient></defs>
+<rect width="36" height="36" rx="9" fill="#1d2027"/><g fill="url(#lg)"><rect x="7" y="15" width="3" height="6" rx="1.5"/><rect x="12" y="10" width="3" height="16" rx="1.5"/><rect x="17" y="6" width="3" height="24" rx="1.5"/><rect x="22" y="12" width="3" height="12" rx="1.5"/><rect x="27" y="16" width="3" height="4" rx="1.5"/></g></svg><div><h1>Set loop point</h1><p>Mark loop in / out live, during playback</p></div></header>
+  <h2 class="section">Set loop point</h2>
+  <details class="card plain" open>
+    <summary><span class="badge">[</span><span class="meta"><span class="title">Set loop point</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Display name"><sdpi-textfield setting="label" placeholder="Loop in / Loop out" maxlength="24"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Group"><sdpi-select setting="group" datasource="getGroupsStop" loading="Loading…" default="*" placeholder="All sounds"></sdpi-select></sdpi-item>
+    <sdpi-item label="Which point"><sdpi-select setting="which" default="in">
+        <option value="in">Loop in</option>
+        <option value="out">Loop out</option>
+      </sdpi-select></sdpi-item>
+    </div>
+  </details>
+  <sdpi-note>Marks the current playback position as the loop-in or loop-out point, live, for every running track matching the group above (one point per track, even if it plays on several outputs) — and turns Loop on for it. Does nothing if nothing matching is playing.</sdpi-note>
+
+</body>
+</html>

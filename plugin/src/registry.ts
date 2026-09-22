@@ -17,6 +17,10 @@ export interface Playback {
 /** Running playbacks, indexed by the id of the action (key) that started them. */
 export const playbacks = new Map<string, Playback>();
 
+/** A track's playbacks are id'd "<context>#<n>" (one per output, suffixed ".<k>" for extra outputs). */
+export const ctxOf = (id: string): string => id.split("#")[0];
+export const trackOf = (id: string): number => parseInt(id.split("#")[1], 10);
+
 export const gainFor = (s: PlaySettings): number => toGain(s.volume ?? 100) * mixer.gainFor(s.group);
 
 export const inGroup = (p: Playback, group: string | undefined): boolean =>

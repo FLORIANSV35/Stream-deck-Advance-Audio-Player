@@ -91,6 +91,22 @@
       }
     },
     {
+      "UUID": "com.saap.audio.looppoint",
+      "Name": "Set Loop Point",
+      "Tooltip": "Marks a loop-in or loop-out point live, at the current playback position, for every running track matching a group. Also turns Loop on for it.",
+      "Icon": "imgs/actions/looppoint",
+      "Controllers": [
+        "Keypad"
+      ],
+      "PropertyInspectorPath": "ui/looppoint.html",
+      "States": [
+        {
+          "Image": "imgs/actions/looppoint-key",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
       "UUID": "com.saap.audio.exitloop",
       "Name": "Exit Loop",
       "Tooltip": "Stops looping playbacks (all, or a group): each finishes its current iteration, then plays through to its trim-out point.",
