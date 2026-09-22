@@ -171,10 +171,10 @@ static double num(NSDictionary *c, NSString *k, double d) {
     _loopStart = loopInS > 0 ? MIN(MAX(_start, (AVAudioFramePosition)(loopInS * _rate)), _end) : _start;
     _loopEnd = loopOutS > 0 ? MIN(_end, MAX(_loopStart, (AVAudioFramePosition)(loopOutS * _rate))) : _end;
     if (_loopEnd <= _loopStart + 1) { _loopStart = _start; _loopEnd = _end; } // invalid range: fall back to the full trim
-    // clamp to at most the loop length (longer leaves no dry segment at all) and to however much source
-    // material actually exists past _loopEnd to read as the crossfade's tail (there may be little to none
-    // if _loopEnd sits near _end)
-    _loopFade = MAX(0, MIN(num(c, @"loopFade", 0), MIN((double)(_loopEnd - _loopStart) / _rate, (double)(_end - _loopEnd) / _rate)));
+    // clamp to at most half the loop length (the pre-wrap dip and post-wrap rise must not overlap across
+    // a cycle) and to however much source material actually exists past _loopEnd to read as the
+    // crossfade's tail (there may be little to none if _loopEnd sits near _end)
+    _loopFade = MAX(0, MIN(num(c, @"loopFade", 0), MIN((double)(_loopEnd - _loopStart) / _rate / 2.0, (double)(_end - _loopEnd) / _rate)));
     _autoFadeOut = num(c, @"fadeOut", 0);
     _gain = _curGain = MAX(0, MIN(1, (float)num(c, @"volume", 1)));
     _fade = 1;
@@ -431,14 +431,24 @@ static double hostDelay(uint64_t host) {
             [self startRampTo:0 dur:MAX(remaining, 0.05) stop:NO];
         }
     }
-    // Crossfade on every wrap: _player always does its normal, unmodified instant wrap (detected here the
-    // same way as before, via a backward jump in -position); right at that instant we start a one-shot
-    // "tail past _loopEnd" on _fadePlayer, ramping it down while _player ramps up from silence, over
-    // _loopFade seconds. Purely time-based (elapsed since the detected wrap), not a stateful ramp shared
-    // with the general fadeIn/fadeOut mechanism, so it can't interact with those.
-    float mainRiseEnv = 1;
+    // Crossfade on every wrap. _player always does its normal, unmodified instant wrap in the actual
+    // scheduled audio — that switch is a real, sample-accurate jump, and -tick only polls at ~50 Hz, so
+    // reacting to it *after* the fact is always too late: whatever volume _player had going in is what
+    // the jump is heard at. So _player must already be down near silence *before* it happens — hence the
+    // predictive fade-out here, driven by -position approaching _loopEnd, exactly like the auto fade-out
+    // near _end above. Once the wrap is (reactively) detected, _player ramps back up from silence while a
+    // second, otherwise-idle player node (_fadePlayer) plays a one-shot copy of the tail past _loopEnd —
+    // the material a hard cut would never let you hear — ramped down over the same window, so what fills
+    // the dip is a genuine crossfade rather than near-silence.
+    float mainEnv = 1;
     if (_loop && !_exiting && _loopFade > 0) {
         double pos = [self position];
+        double loopOutSec = (double)(_loopEnd - _start) / _rate;
+        double toWrap = loopOutSec - pos;
+        if (toWrap <= _loopFade) {
+            float p = (float)(1.0 - MAX(0, toWrap) / _loopFade);
+            mainEnv = cosf(p * M_PI_2); // ramps down to ~0 by the time -position reaches _loopEnd
+        }
         if (pos < _lastLoopPos - 0.05) { // position jumped backward: a wrap just happened
             _fadeArmTime = nowSec();
             [self scheduleFadeTail];
@@ -446,13 +456,13 @@ static double hostDelay(uint64_t host) {
         _lastLoopPos = pos;
         if (_fadeArmTime >= 0) {
             float p = (float)MIN(1, MAX(0, (nowSec() - _fadeArmTime) / _loopFade));
-            mainRiseEnv = sinf(p * M_PI_2);
+            mainEnv = MIN(mainEnv, sinf(p * M_PI_2)); // ramps back up; MIN so it can't override the pre-wrap dip
             _fadePlayer.volume = _curGain * _fade * cosf(p * M_PI_2);
             if (p >= 1) _fadeArmTime = -1; // crossfade finished; the one-shot tail ends on its own
         }
     }
     _curGain += (_gain - _curGain) * 0.3f;
-    _player.volume = _curGain * _fade * mainRiseEnv;
+    _player.volume = _curGain * _fade * mainEnv;
 }
 
 // One-shot playback of the tail past _loopEnd (material a hard cut would never let you hear), used to
