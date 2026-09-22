@@ -30,7 +30,8 @@ pub struct Params {
     /// loop sub-range within the trim, in seconds; 0/unset falls back to the full trim range
     pub loop_in: f64,
     pub loop_out: f64,
-    /// fade out approaching loop_out, mirrored as a fade in just after loop_in, on every wrap (seconds)
+    /// crossfade duration on every wrap: the tail approaching loop_out blends into the head starting at
+    /// loop_in, so the seam is masked instead of an audible jump (seconds; 0 = instant wrap, no crossfade)
     pub loop_fade: f64,
 }
 
@@ -106,11 +107,8 @@ struct State {
     /// true once "exit loop" was requested: the next time playback reaches `loop_out` it continues
     /// straight into the outro (towards `end`) instead of wrapping back to `loop_in`
     exiting: bool,
-    /// seconds of fade approaching loop_out / following loop_in, on every wrap (0 = no fade, instant wrap)
+    /// crossfade duration on every wrap, in seconds (0 = instant wrap, no crossfade)
     loop_fade: f64,
-    /// true once the first wrap has happened: distinguishes "intro passing through loop_in on its way to
-    /// loop_out" (no fade-in wanted) from "just wrapped back to loop_in" (fade-in wanted)
-    wrapped_once: bool,
     paused: bool,
     /// silence until this (audible) instant: this is what aligns several playbacks
     gate: Option<Instant>,
@@ -174,17 +172,36 @@ impl State {
             // iteration keeps playing and, next time it would have wrapped, it instead sails through into
             // the outro — no special-casing of "already mid-iteration" is needed.
             let looping_now = self.looping && !self.exiting;
-            let wrap_at = if looping_now { self.loop_out } else { self.end };
-            if self.pos >= wrap_at {
-                if looping_now {
-                    self.pos = self.loop_in + (self.pos - self.loop_out);
-                    self.wrapped_once = true;
-                } else {
-                    self.finished = Some(Reason::Finished);
-                    break;
-                }
+            // Crossfade: instead of hard-cutting at loop_out, keep reading `loop_fade` seconds of tail
+            // material *past* it (this is why fade is clamped to leave that much room before `end`) and
+            // blend it with the head starting at loop_in, then switch to loop_in + fade once the tail is
+            // exhausted. This is what keeps the loop's rhythmic length exactly loop_out - loop_in: the
+            // normal segment of the *next* iteration is shorter by `fade`, but the crossfade itself still
+            // takes `fade` seconds of output, so nothing is lost — cutting the crossfade entirely before
+            // loop_out instead (no tail read) would shrink each iteration by `fade`, drifting the loop's
+            // tempo, which is why it's done this way round.
+            let fade_frames = if looping_now { self.loop_fade * self.src_rate } else { 0.0 };
+            if !looping_now && self.pos >= self.end {
+                self.finished = Some(Reason::Finished);
+                break;
             }
-            let (l, r) = self.frame_at(self.pos);
+            if looping_now && self.pos >= self.loop_out + fade_frames {
+                self.pos = self.loop_in + fade_frames + (self.pos - (self.loop_out + fade_frames));
+            }
+            let (l, r) = if fade_frames > 0.0 && self.pos >= self.loop_out && self.pos < self.loop_out + fade_frames {
+                // blend the tail past loop_out (primary, fading out) with the head from loop_in (secondary,
+                // fading in), in sync — dropped instantly if `exiting` flips mid-crossfade (fade_frames then
+                // reads 0 above), which is seamless here since the primary side is already genuine tail
+                // content continuing naturally into the outro, unlike a switch-over that would need undoing
+                let (pl, pr) = self.frame_at(self.pos);
+                let sec_pos = self.loop_in + (self.pos - self.loop_out);
+                let (sl, sr) = self.frame_at(sec_pos);
+                let p = ((self.pos - self.loop_out) / fade_frames) as f32;
+                let (out_g, in_g) = ((p * FRAC_PI_2).cos(), (p * FRAC_PI_2).sin());
+                (pl * out_g + sl * in_g, pr * out_g + sr * in_g)
+            } else {
+                self.frame_at(self.pos)
+            };
 
             // fade in progress (sine/cosine: constant power)
             if let Some(mut rp) = self.ramp.take() {
@@ -215,26 +232,8 @@ impl State {
                     auto = (p * FRAC_PI_2).cos();
                 }
             }
-            // fade approaching the wrap point, mirrored just after it — masks the click of a non-zero-
-            // crossing loop point. Purely a function of position (like `auto` above), not a stateful ramp,
-            // so it stays correct regardless of exactly when a wrap happened.
-            let mut loop_env = 1.0f32;
-            if looping_now && self.loop_fade > 0.0 {
-                let to_wrap = (self.loop_out - self.pos) / self.src_rate;
-                if to_wrap <= self.loop_fade {
-                    let p = (1.0 - (to_wrap / self.loop_fade).max(0.0)) as f32;
-                    loop_env = (p * FRAC_PI_2).cos();
-                }
-                if self.wrapped_once {
-                    let since_in = (self.pos - self.loop_in) / self.src_rate;
-                    if (0.0..=self.loop_fade).contains(&since_in) {
-                        let p = (since_in / self.loop_fade) as f32;
-                        loop_env = loop_env.min((p * FRAC_PI_2).sin());
-                    }
-                }
-            }
             self.cur_gain += (self.gain - self.cur_gain) * smooth;
-            let g = self.cur_gain * self.fade * auto * loop_env;
+            let g = self.cur_gain * self.fade * auto;
 
             let base = i * channels;
             if channels == 1 {
@@ -286,8 +285,10 @@ impl Voice {
             loop_in = start;
             loop_out = end;
         }
-        // clamp so the fade-out and fade-in zones never overlap: the loop always has a moment at full volume
-        let loop_fade = p.loop_fade.max(0.0).min((loop_out - loop_in) / src_rate / 2.0);
+        // clamp to at most the loop length (longer would make the switch-over position overshoot loop_out,
+        // leaving no dry segment at all) and to however much source material actually exists past loop_out
+        // to read as the crossfade's tail (there may be little to none if loop_out sits near `end`)
+        let loop_fade = p.loop_fade.max(0.0).min((loop_out - loop_in) / src_rate).min((end - loop_out) / src_rate);
         let gain = p.volume.clamp(0.0, 1.0);
         let mut state = State {
             data,
@@ -302,7 +303,6 @@ impl Voice {
             loop_out,
             exiting: false,
             loop_fade,
-            wrapped_once: false,
             paused: false,
             gate,
             gain,

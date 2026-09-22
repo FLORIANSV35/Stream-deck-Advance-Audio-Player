@@ -31,8 +31,9 @@ been validated on real audio hardware: feedback is welcome. The plugin logs are 
   - **loop in / loop out** points, independent from trim: play from trim-in, loop between loop-in and
     loop-out, then (once **Exit Loop** is pressed) finish the current pass and play through to trim-out
     instead of wrapping again — handy for a musical intro/loop/outro structure;
-  - **loop fade**: fades out approaching loop-out and back in after loop-in, on every wrap, to mask the
-    click of a loop point that isn't a zero crossing;
+  - **loop crossfade**: on every wrap, blends the tail past loop-out into the head at loop-in instead of a
+    hard cut, so the loop's rhythmic length stays exact — masks the click of a loop point that isn't a
+    zero crossing, more musically than a fade to silence and back;
   - live volume per track, countdown or elapsed time with a progress ring on the key;
   - key behavior while playing: stop (with fade), pause / resume, or restart;
   - track 1 can act as a **master**: its trim points, loop points (independently linkable), fades
