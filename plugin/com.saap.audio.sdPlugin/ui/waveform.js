@@ -221,6 +221,12 @@
 
     window.addEventListener("resize", draw);
     root.closest("details")?.addEventListener("toggle", draw);
+    // canvas.clientWidth can still be 0 the first time draw() runs (the property inspector's webview
+    // hasn't finished laying out the page yet, e.g. right after the panel opens or peaks arrive very
+    // fast) — draw() silently no-ops on a zero width, so without this the waveform stays blank until
+    // something else forces a layout pass (switching keys and back). A ResizeObserver re-fires the
+    // moment the canvas actually gets a real size, on any platform/webview.
+    new ResizeObserver(draw).observe(canvas);
     draw();
   }
 })();

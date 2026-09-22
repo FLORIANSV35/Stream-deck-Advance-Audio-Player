@@ -13,6 +13,7 @@
       const hiddenByLink = el.dataset.link && linkFlags[el.dataset.link];
       const hiddenByLoop = el.dataset.loopfield !== undefined && !loopOn[Number(el.dataset.loopfield)];
       el.style.display = hiddenByLink || hiddenByLoop ? "none" : "";
+      el.offsetHeight; // force layout now: some webviews defer repainting a just-unhidden custom element
     });
   }
 
