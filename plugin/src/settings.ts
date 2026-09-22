@@ -96,3 +96,10 @@ export type ExitLoopSettings = {
   label?: string;
   group?: string;
 };
+
+export type SetLoopPointSettings = {
+  /** name shown on the key (lets you have several distinct set-loop-point buttons) */
+  label?: string;
+  group?: string;
+  which?: "in" | "out";
+};

@@ -98,6 +98,18 @@ def volume():
     body += '  <sdpi-note>On a dial: rotate = volume, press or touch = mute. The step applies to each notch.</sdpi-note>\n'
     return page("Volume", "Master or per group of sounds", body)
 
+def looppoint():
+    body = '  <h2 class="section">Set loop point</h2>\n' + card("[", "Set loop point",
+        item("Display name", '<sdpi-textfield setting="label" placeholder="Loop in / Loop out" maxlength="24"></sdpi-textfield>') +
+        item("Group", '<sdpi-select setting="group" datasource="getGroupsStop" loading="Loading…" default="*" placeholder="All sounds"></sdpi-select>') +
+        item("Which point", '''<sdpi-select setting="which" default="in">
+        <option value="in">Loop in</option>
+        <option value="out">Loop out</option>
+      </sdpi-select>'''),
+        open=True, cls="plain")
+    body += '  <sdpi-note>Marks the current playback position as the loop-in or loop-out point, live, for every running track matching the group above (one point per track, even if it plays on several outputs) — and turns Loop on for it. Does nothing if nothing matching is playing.</sdpi-note>\n'
+    return page("Set loop point", "Mark loop in / out live, during playback", body)
+
 def exitloop():
     body = '  <h2 class="section">Exit loop</h2>\n' + card("↴", "Exit loop",
         item("Display name", '<sdpi-textfield setting="label" placeholder="Exit loop" maxlength="24"></sdpi-textfield>') +
@@ -131,7 +143,7 @@ def seek():
     body += '  <sdpi-note>Acts on all playbacks of the chosen group, together and without offset. Dial: rotate = scrub, press or touch = pause / resume.</sdpi-note>\n'
     return page("Skip forward / back", "Move within the playback", body)
 
-for name, fn in [("play", play), ("volume", volume), ("stopall", stopall), ("seek", seek), ("exitloop", exitloop)]:
+for name, fn in [("play", play), ("volume", volume), ("stopall", stopall), ("seek", seek), ("exitloop", exitloop), ("looppoint", looppoint)]:
     with open(os.path.join(UI, f"{name}.html"), "w") as f:
         f.write(fn())
 print("ok")

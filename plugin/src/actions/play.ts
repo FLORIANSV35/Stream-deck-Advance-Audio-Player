@@ -15,7 +15,7 @@ import { engine, type PeaksResult, type PlayCommand } from "../engine.js";
 import { isGroupsEvent, normGroup, sendGroups } from "../groups.js";
 import { mixer } from "../mixer.js";
 import { outputItems, trackOutputs } from "../outputs.js";
-import { playbacks, gainFor, inGroup, type Playback } from "../registry.js";
+import { playbacks, gainFor, inGroup, ctxOf, type Playback } from "../registry.js";
 import { fmtTime, playKey, type PlayView } from "../render.js";
 import { MAX_TRACKS, seconds, trackSettings, type PlaySettings } from "../settings.js";
 
@@ -37,8 +37,10 @@ function resolvePath(p: string | undefined): string | undefined {
 }
 
 /** The tracks of a key have the id "<context>#<n>" on the engine side. */
-const ctxOf = (id: string) => id.split("#")[0];
 const tracksOf = (ctx: string): Playback[] => [...playbacks.values()].filter((p) => ctxOf(p.id) === ctx);
+
+/** The single running PlayAction, so other actions (Set Loop Point) can update a track's own settings. */
+export let playAction: PlayAction | undefined;
 
 @action({ UUID: "com.saap.audio.play" })
 export class PlayAction extends SingletonAction<PlaySettings> {
@@ -48,6 +50,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
 
   constructor() {
     super();
+    playAction = this;
     engine.on("started", (id, dur) => {
       const p = playbacks.get(id);
       if (p) { p.dur = dur; this.#render(ctxOf(id)); }
@@ -124,6 +127,24 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     } else if (event === "getOutputs") {
       await streamDeck.ui.sendToPropertyInspector({ event, items: outputItems(await engine.devices()) } as JsonValue);
     }
+  }
+
+  /**
+   * Sets a track's loop-in or loop-out to a captured position (seconds), and turns Loop on for it — used
+   * by the "Set Loop Point" action to mark a point live, during playback. Writes to the track's own
+   * setting regardless of link state, same as typing into its field would (a linked track's own value
+   * stays dormant until its link is unchecked).
+   */
+  async setLoopPoint(ctx: string, track: number, which: "in" | "out", positionSeconds: number): Promise<void> {
+    const key = this.#keys.get(ctx);
+    if (!key) return;
+    const s = this.#settings.get(ctx) ?? {};
+    const suffix = track === 1 ? "" : String(track);
+    const updated: PlaySettings = { ...s, [`loop${which === "in" ? "In" : "Out"}${suffix}`]: positionSeconds.toFixed(2), [`loop${suffix}`]: true };
+    this.#settings.set(ctx, updated);
+    await key.setSettings(updated);
+    this.#lastView.delete(ctx);
+    this.#render(ctx);
   }
 
   #peakCache = new Map<string, PeaksResult>();

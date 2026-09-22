@@ -40,6 +40,9 @@ been validated on real audio hardware: feedback is welcome. The plugin logs are 
     (including the loop fade) and volume can be linked to the other tracks.
 - **Volume** (key or dial): master volume or per-group volume, mute. Dial: rotate = volume, press = mute.
 - **Skip forward / back** (key or dial): jump within running playbacks; all tracks move together and stay in sync.
+- **Set Loop Point** (key): marks the current playback position as the loop-in or loop-out point, live, for every
+  running track matching a group (all sounds, or one group) — and turns Loop on for it. Does nothing if nothing
+  matching is playing.
 - **Exit Loop** (key): stops looping playbacks (all, or one group) — each finishes its current pass, then plays
   through to its trim-out point. Has no effect on a track that isn't looping.
 - **Stop all** (key): all sounds or one group, with a fade or an immediate cut. Give each button its own name to

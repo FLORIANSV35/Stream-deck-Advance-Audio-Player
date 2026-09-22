@@ -147,3 +147,17 @@ export function exitLoopKey(o: { label: string; group?: string }): string {
     ${text(72, 137, 13, C.text, clip(o.label, 16), { weight: 500 })}
   `));
 }
+
+export function loopPointKey(o: { label: string; group?: string; which: "in" | "out" }): string {
+  // a bracket opening towards where the loop's content lies: "[" marks the start (in), "]" the end (out)
+  const isIn = o.which !== "out";
+  const bracket = isIn
+    ? `<path d="M86 50 h-18 v52 h18" fill="none" stroke="url(#b)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>`
+    : `<path d="M58 50 h18 v52 h-18" fill="none" stroke="url(#b)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>`;
+  return uri(frame(`
+    ${text(72, 24, 16, C.muted, clip((o.group || "ALL SOUNDS").toUpperCase(), 14), { weight: 600, spacing: 1.2 })}
+    <circle cx="72" cy="78" r="${RING_R}" fill="none" stroke="${C.faint}" stroke-width="7"/>
+    ${bracket}
+    ${text(72, 137, 13, C.text, clip(o.label, 16), { weight: 500 })}
+  `));
+}
