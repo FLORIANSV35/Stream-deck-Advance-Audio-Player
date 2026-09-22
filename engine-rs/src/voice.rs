@@ -27,6 +27,9 @@ pub struct Params {
     pub fade_out: f64,
     pub trim_in: f64,
     pub trim_out: f64,
+    /// loop sub-range within the trim, in seconds; 0/unset falls back to the full trim range
+    pub loop_in: f64,
+    pub loop_out: f64,
 }
 
 pub struct DevInfo {
@@ -95,6 +98,12 @@ struct State {
     /// source frames advanced per output frame (resampling)
     step: f64,
     looping: bool,
+    /// loop sub-range within the trim, in frames of the source file
+    loop_in: f64,
+    loop_out: f64,
+    /// true once "exit loop" was requested: the next time playback reaches `loop_out` it continues
+    /// straight into the outro (towards `end`) instead of wrapping back to `loop_in`
+    exiting: bool,
     paused: bool,
     /// silence until this (audible) instant: this is what aligns several playbacks
     gate: Option<Instant>,
@@ -153,9 +162,15 @@ impl State {
         let smooth = 1.0 - (-1.0 / (0.02 * self.out_rate)).exp() as f32;
 
         for i in first..frames {
-            if self.pos >= self.end {
-                if self.looping {
-                    self.pos = self.start + (self.pos - self.end);
+            // while looping and not exiting, the wrap point is `loop_out`; otherwise (not looping, or
+            // exiting the loop) it is `end`. Flipping `exiting` just changes this boundary: the current
+            // iteration keeps playing and, next time it would have wrapped, it instead sails through into
+            // the outro — no special-casing of "already mid-iteration" is needed.
+            let looping_now = self.looping && !self.exiting;
+            let wrap_at = if looping_now { self.loop_out } else { self.end };
+            if self.pos >= wrap_at {
+                if looping_now {
+                    self.pos = self.loop_in + (self.pos - self.loop_out);
                 } else {
                     self.finished = Some(Reason::Finished);
                     break;
@@ -182,9 +197,10 @@ impl State {
                     self.ramp = Some(rp);
                 }
             }
-            // automatic fade out before the end of the file
+            // automatic fade out before the end of the file — only on the final pass (not looping,
+            // or looping but exiting), since during regular loop iterations there is no upcoming `end`
             let mut auto = 1.0f32;
-            if !self.looping && self.auto_fade_out > 0.0 {
+            if !looping_now && self.auto_fade_out > 0.0 {
                 let remaining = (self.end - self.pos) / self.src_rate;
                 if remaining <= self.auto_fade_out {
                     let p = (1.0 - remaining / self.auto_fade_out).clamp(0.0, 1.0) as f32;
@@ -236,6 +252,14 @@ impl Voice {
         if end <= start + 1.0 {
             return Err("Invalid trim points".to_string());
         }
+        // loop sub-range within the trim; 0/unset or an invalid range falls back to the full trim
+        // (this is also what makes existing "loop the whole trim" settings keep working unchanged)
+        let mut loop_in = if p.loop_in > 0.0 { (p.loop_in * src_rate).clamp(start, end) } else { start };
+        let mut loop_out = if p.loop_out > 0.0 { (p.loop_out * src_rate).clamp(start, end) } else { end };
+        if loop_out <= loop_in + 1.0 {
+            loop_in = start;
+            loop_out = end;
+        }
         let gain = p.volume.clamp(0.0, 1.0);
         let mut state = State {
             data,
@@ -246,6 +270,9 @@ impl Voice {
             out_rate,
             step: src_rate / out_rate,
             looping: p.looping,
+            loop_in,
+            loop_out,
+            exiting: false,
             paused: false,
             gate,
             gain,
@@ -298,6 +325,21 @@ impl Voice {
 
     pub fn is_paused(&self) -> bool {
         self.lock().paused
+    }
+
+    pub fn is_looping(&self) -> bool {
+        self.lock().looping
+    }
+
+    /// True once "exit loop" was requested for this playback.
+    pub fn is_exiting(&self) -> bool {
+        self.lock().exiting
+    }
+
+    /// Stops wrapping back to `loop_in`: playback finishes the current iteration, then continues
+    /// straight through the outro to the end of the trim. No-op if this playback is not looping.
+    pub fn exit_loop(&self) {
+        self.lock().exiting = true;
     }
 
     pub fn finished(&self) -> Option<Reason> {

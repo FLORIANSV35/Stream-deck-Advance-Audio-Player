@@ -8,6 +8,10 @@ export interface Playback {
   state: "playing" | "paused";
   pos: number;
   dur: number;
+  /** mirrors settings.loop, reported back by the engine for convenience */
+  looping: boolean;
+  /** true once exitLoop was requested: still playing, but will not wrap back to loopIn again */
+  exiting: boolean;
 }
 
 /** Running playbacks, indexed by the id of the action (key) that started them. */

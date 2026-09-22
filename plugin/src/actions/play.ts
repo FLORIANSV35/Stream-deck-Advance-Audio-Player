@@ -52,10 +52,10 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       const p = playbacks.get(id);
       if (p) { p.dur = dur; this.#render(ctxOf(id)); }
     });
-    engine.on("state", (id, state, pos, dur) => {
+    engine.on("state", (id, state, pos, dur, looping, exiting) => {
       const p = playbacks.get(id);
       if (!p) return;
-      p.state = state; p.pos = pos; p.dur = dur;
+      p.state = state; p.pos = pos; p.dur = dur; p.looping = looping; p.exiting = exiting;
       this.#render(ctxOf(id));
     });
     engine.on("ended", (id, reason, message) => {
@@ -189,8 +189,9 @@ export class PlayAction extends SingletonAction<PlaySettings> {
           volume: gainFor(t), loop: !!t.loop,
           fadeIn: seconds(t.fadeIn as number), fadeOut: seconds(t.fadeOut as number),
           trimIn: seconds(t.trimIn as string), trimOut: seconds(t.trimOut as string),
+          loopIn: seconds(t.loopIn as string), loopOut: seconds(t.loopOut as string),
         });
-        playbacks.set(id, { id, settings: t, state: "playing", pos: 0, dur: 0 });
+        playbacks.set(id, { id, settings: t, state: "playing", pos: 0, dur: 0, looping: !!t.loop, exiting: false });
       });
     }
     streamDeck.logger.info(`Playback ${ctx}: ${tracks.length} track(s), ${commands.length} output(s)`);
@@ -214,12 +215,13 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     } else {
       // the display follows the longest track (non-looping if possible)
       const measured = active.filter((p) => p.dur > 0);
-      const finite = measured.filter((p) => !p.settings.loop);
+      // once a track is exiting its loop, it behaves like a finite track again (an end is now in sight)
+      const finite = measured.filter((p) => !p.settings.loop || p.exiting);
       const ref = (finite.length ? finite : measured).sort((a, b) => b.dur - b.pos - (a.dur - a.pos))[0];
-      const looping = !!ref?.settings.loop;
+      const looping = !!ref?.settings.loop && !ref?.exiting;
       const showRemaining = remaining && !looping;
       view = {
-        label, group: normGroup(s.group), tracks: configured, loop: looping,
+        label, group: normGroup(s.group), tracks: configured, loop: looping, exiting: !!ref?.exiting,
         state: active.every((p) => p.state === "paused") ? "paused" : "playing",
         time: ref ? (showRemaining ? "-" : "") + fmtTime(showRemaining ? ref.dur - ref.pos : ref.pos) : "…",
         progress: ref ? ref.pos / ref.dur : 0,

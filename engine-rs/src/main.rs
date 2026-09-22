@@ -34,6 +34,8 @@ fn params(c: &Value) -> Params {
         fade_out: num(c, "fadeOut", 0.0),
         trim_in: num(c, "trimIn", 0.0),
         trim_out: num(c, "trimOut", 0.0),
+        loop_in: num(c, "loopIn", 0.0),
+        loop_out: num(c, "loopOut", 0.0),
     }
 }
 
@@ -195,6 +197,15 @@ impl Engine {
                     v.set_volume(num(&c, "value", 1.0) as f32);
                 }
             }
+            "exitLoop" => {
+                if c.get("ids").is_some() {
+                    for i in self.ids(&c) {
+                        self.voices[&i].exit_loop();
+                    }
+                } else if let Some(v) = self.voices.get(&id) {
+                    v.exit_loop();
+                }
+            }
             "stopAll" => self.voices.values().for_each(|v| v.stop(fade)),
             "cutAll" => self.voices.values().for_each(|v| v.cut()),
             "peaks" => {
@@ -238,7 +249,8 @@ impl Engine {
     fn report_state(&self) {
         for v in self.voices.values() {
             let state = if v.is_paused() { "paused" } else { "playing" };
-            emit(json!({"evt": "state", "id": v.id, "state": state, "pos": v.position(), "dur": v.duration}));
+            emit(json!({"evt": "state", "id": v.id, "state": state, "pos": v.position(), "dur": v.duration,
+                        "looping": v.is_looping(), "exiting": v.is_exiting()}));
         }
     }
 }

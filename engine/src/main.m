@@ -82,6 +82,8 @@ static int defaultDeviceChannels(void) {
 @property (nonatomic, copy) void (^onEnded)(SAInstance *, NSString *);
 @property (nonatomic, readonly) BOOL paused;
 @property (nonatomic, readonly) double duration;
+@property (nonatomic, readonly) BOOL looping;
+@property (nonatomic, readonly) BOOL exiting;
 - (instancetype)initWithCommand:(NSDictionary *)c error:(NSString **)err;
 - (double)position;
 - (void)setVolume:(float)v;
@@ -94,6 +96,7 @@ static int defaultDeviceChannels(void) {
 - (NSDictionary *)syncInfo;
 - (void)stopWithFade:(double)seconds;
 - (void)cut;
+- (void)exitLoop;
 - (void)tick;
 @end
 
@@ -107,7 +110,19 @@ static int defaultDeviceChannels(void) {
     double _autoFadeOut, _lastPos;
     int _pending;
     int _gen;             // changes on every seek: ignores the ends of stale segments
-    double _baseOffset;   // position (within the trim) at which the current scheduling started
+    // Loop sub-range within the trim (defaults to [_start, _end) when unset or invalid: this is what
+    // makes plain "loop the whole trim" settings keep working). `_exiting` is set by -exitLoop: the next
+    // time playback reaches _loopEnd it continues into the outro instead of wrapping back to _loopStart.
+    AVAudioFramePosition _loopStart, _loopEnd;
+    BOOL _exiting;
+    AVAudioFile *_file; // opened once and reused for every scheduled segment/chunk (see -scheduleAVFrom:to:)
+    // Bookkeeping of the segment currently at the front of the AVAudioPlayerNode queue (the one actually
+    // playing), used to compute -position: since segments now have varying lengths (intro/loop/outro),
+    // position can no longer be derived from a single fixed-length repeating segment.
+    AVAudioFramePosition _curFrom, _curTo;
+    int64_t _curCumStart;  // cumulative sample count, in player time, at which the current segment began
+    AVAudioFramePosition _nextFrom, _nextTo;
+    BOOL _hasNext;         // a follow-up segment is already scheduled, buffered one ahead to avoid gaps
     float _gain, _curGain, _fade;
     // fade ramp
     BOOL _hasRamp, _rampStop;
@@ -130,6 +145,7 @@ static double num(NSDictionary *c, NSString *k, double d) {
     NSError *e = nil;
     AVAudioFile *file = [[AVAudioFile alloc] initForReading:_url error:&e];
     if (!file) { *err = [NSString stringWithFormat:@"Unreadable file: %@", path]; return nil; }
+    _file = file; // reused for every segment/chunk scheduled below, instead of reopening each time
 
     _rate = file.processingFormat.sampleRate;
     AVAudioFramePosition total = file.length;
@@ -139,6 +155,11 @@ static double num(NSDictionary *c, NSString *k, double d) {
     if (_end <= _start) { *err = @"Invalid trim points"; return nil; }
     _duration = (double)(_end - _start) / _rate;
     _loop = [c[@"loop"] boolValue];
+    double loopInS = num(c, @"loopIn", 0);
+    double loopOutS = num(c, @"loopOut", 0);
+    _loopStart = loopInS > 0 ? MIN(MAX(_start, (AVAudioFramePosition)(loopInS * _rate)), _end) : _start;
+    _loopEnd = loopOutS > 0 ? MIN(_end, MAX(_loopStart, (AVAudioFramePosition)(loopOutS * _rate))) : _end;
+    if (_loopEnd <= _loopStart + 1) { _loopStart = _start; _loopEnd = _end; } // invalid range: fall back to the full trim
     _autoFadeOut = num(c, @"fadeOut", 0);
     _gain = _curGain = MAX(0, MIN(1, (float)num(c, @"volume", 1)));
     _fade = 1;
@@ -186,45 +207,90 @@ static double num(NSDictionary *c, NSString *k, double d) {
     if (fadeIn > 0) { _fade = 0; [self startRampTo:1 dur:fadeIn stop:NO]; }
     _player.volume = _curGain * _fade;
 
-    for (int i = 0; i < (_loop ? 2 : 1); i++) if (![self scheduleFrom:0]) { *err = @"Cannot read the file"; return nil; }
+    _curCumStart = 0;
+    _hasNext = NO;
+    _curFrom = _start;
+    _curTo = [self scheduleChunkFrom:_start];
+    if (_curTo < _end) {
+        // there is more to play after this chunk: keep one more chunk buffered ahead, so the loop
+        // point (or a chunk boundary within a long iteration) never gaps
+        _nextFrom = [self advanceFrom:_curTo];
+        _nextTo = [self scheduleChunkFrom:_nextFrom];
+        _hasNext = YES;
+    }
     if (![_engine startAndReturnError:&e]) {
         *err = [NSString stringWithFormat:@"Cannot start audio: %@", e.localizedDescription]; return nil;
     }
     return self;
 }
 
-// Schedules playback of the trim starting at `offset` seconds (0 = start of the trim).
-- (BOOL)scheduleFrom:(double)offset {
-    NSError *e = nil;
-    AVAudioFile *f = [[AVAudioFile alloc] initForReading:_url error:&e];
-    if (!f) return NO;
-    AVAudioFramePosition from = _start + (AVAudioFramePosition)(offset * _rate);
-    if (from >= _end) from = _start;
+// While looping (and not exiting), a whole iteration is not committed to AVAudioPlayerNode in one shot:
+// scheduling advances in chunks of at most this length. That way -exitLoop only ever has to wait out
+// the currently-playing chunk plus one buffered chunk (not a whole iteration, which could be much
+// longer), while a single chunk covers the whole iteration anyway when it is shorter than this.
+static const double kLoopChunkSeconds = 0.5;
+
+// The end frame a segment starting at `from` should stop at: at most one loop chunk ahead while looping
+// and not exiting (and `from` is still before _loopEnd), otherwise straight through to the trim's end.
+// This single decision point is what makes -exitLoop take effect just by flipping _exiting: the next
+// time a chunk would stop at _loopEnd, it instead runs straight through to _end.
+- (AVAudioFramePosition)scheduleChunkFrom:(AVAudioFramePosition)from {
+    AVAudioFramePosition to = _end;
+    if (_loop && !_exiting && from < _loopEnd) {
+        AVAudioFramePosition chunk = MAX(1, (AVAudioFramePosition)(kLoopChunkSeconds * _rate));
+        to = MIN(_loopEnd, from + chunk);
+    }
+    [self scheduleAVFrom:from to:to];
+    return to;
+}
+
+// Where the chunk *following* one that ended at `to` should start: wrap to _loopStart if `to` reached
+// the loop-out point (and we are still looping), otherwise just continue on from `to`.
+- (AVAudioFramePosition)advanceFrom:(AVAudioFramePosition)to {
+    return (to == _loopEnd && _loop && !_exiting) ? _loopStart : to;
+}
+
+// Schedules one AVAudioPlayerNode segment [from, to). Pure scheduling: callers update _cur*/_next*
+// themselves. A zero-length range (from >= to) is a silent no-op.
+- (void)scheduleAVFrom:(AVAudioFramePosition)from to:(AVAudioFramePosition)to {
+    if (from >= to) return;
     _pending++;
     int gen = _gen;
     __weak SAInstance *ws = self;
-    [_player scheduleSegment:f startingFrame:from frameCount:(AVAudioFrameCount)(_end - from) atTime:nil
+    [_player scheduleSegment:_file startingFrame:from frameCount:(AVAudioFrameCount)(to - from) atTime:nil
       completionCallbackType:AVAudioPlayerNodeCompletionDataPlayedBack
            completionHandler:^(AVAudioPlayerNodeCompletionCallbackType t) {
         dispatch_async(dispatch_get_main_queue(), ^{ [ws segmentDone:gen]; });
     }];
-    return YES;
 }
 
 - (void)segmentDone:(int)gen {
     if (_closed || gen != _gen) return;
     _pending--;
-    if (_loop) [self scheduleFrom:0];
-    else if (_pending <= 0) [self finish:@"finished"];
+    if (_hasNext) {
+        _curCumStart += (_curTo - _curFrom);
+        _curFrom = _nextFrom; _curTo = _nextTo;
+        _hasNext = NO;
+    }
+    if (_curTo < _end) {
+        _nextFrom = [self advanceFrom:_curTo];
+        _nextTo = [self scheduleChunkFrom:_nextFrom];
+        _hasNext = YES;
+    } else if (_pending <= 0) {
+        [self finish:@"finished"];
+    }
 }
 
 - (double)position {
     AVAudioTime *nt = _player.lastRenderTime;
     AVAudioTime *pt = nt ? [_player playerTimeForNodeTime:nt] : nil;
     if (!pt || pt.sampleTime < 0) return _lastPos;
-    double p = _baseOffset + (double)pt.sampleTime / pt.sampleRate;
-    if (_loop) p = fmod(p, _duration);
-    _lastPos = MIN(p, _duration);
+    int64_t frameInSeg = pt.sampleTime - _curCumStart;
+    AVAudioFramePosition segLen = _curTo - _curFrom;
+    if (frameInSeg < 0) frameInSeg = 0;
+    if (frameInSeg > segLen) frameInSeg = segLen; // clamp: a completion callback may not have run yet
+    double p = (double)(_curFrom - _start + frameInSeg) / _rate;
+    _lastPos = MIN(MAX(p, 0), _duration);
     return _lastPos;
 }
 
@@ -250,7 +316,11 @@ static double hostDelay(uint64_t host) {
     AVAudioTime *nt = _player.lastRenderTime;
     AVAudioTime *pt = nt ? [_player playerTimeForNodeTime:nt] : nil;
     if (!pt || !nt.hostTimeValid) return @{ @"id": _ident };
-    double start = [AVAudioTime secondsForHostTime:nt.hostTime] - (double)pt.sampleTime / pt.sampleRate - _baseOffset;
+    // wall-clock instant that would correspond to trim-position 0, extrapolating the current segment's
+    // linear playback backward (mirrors -position's own bookkeeping, see _curFrom/_curCumStart there)
+    double curFromOffsetSec = (double)(_curFrom - _start) / _rate;
+    double curCumStartSec = (double)_curCumStart / _rate;
+    double start = [AVAudioTime secondsForHostTime:nt.hostTime] - (double)pt.sampleTime / pt.sampleRate - curFromOffsetSec + curCumStartSec;
     double lat = _engine.outputNode.presentationLatency;
     return @{ @"id": _ident, @"start": @(start), @"latency": @(lat), @"emerges": @(start + lat) };
 }
@@ -267,10 +337,18 @@ static double hostDelay(uint64_t host) {
     _gen++;
     _pending = 0;
     [_player stop];
-    _baseOffset = seconds;
+    AVAudioFramePosition from = _start + (AVAudioFramePosition)(seconds * _rate);
+    if (from >= _end) from = _start;
+    _curCumStart = 0;
+    _hasNext = NO;
+    _curFrom = from;
+    _curTo = [self scheduleChunkFrom:from];
     _lastPos = seconds;
-    [self scheduleFrom:seconds];
-    if (_loop) [self scheduleFrom:0];
+    if (_curTo < _end) {
+        _nextFrom = [self advanceFrom:_curTo];
+        _nextTo = [self scheduleChunkFrom:_nextFrom];
+        _hasNext = YES;
+    }
     [self playAtHostTime:host];
     if (_paused) [_player pause];
     // moved back before the automatic fade-out zone: cancel it
@@ -307,6 +385,10 @@ static double hostDelay(uint64_t host) {
 
 - (void)cut { [self finish:@"stopped"]; }
 
+// Stops wrapping back to _loopStart: playback finishes the current iteration, then continues straight
+// through the outro to the end of the trim. No-op if this playback is not looping.
+- (void)exitLoop { _exiting = YES; }
+
 - (void)tick {
     if (_closed) return;
     double t = nowSec();
@@ -321,7 +403,9 @@ static double hostDelay(uint64_t host) {
             if (_rampStop) { [self finish:@"stopped"]; return; }
         }
     }
-    if (!_loop && !_fadingOut && _autoFadeOut > 0 && !_paused) {
+    // the automatic fade-out near the end only applies on the final pass: not looping at all, or
+    // looping but already exiting (playing the outro towards _end)
+    if ((!_loop || _exiting) && !_fadingOut && _autoFadeOut > 0 && !_paused) {
         double remaining = _duration - [self position];
         if (remaining <= _autoFadeOut) {
             _fadingOut = YES;
@@ -341,9 +425,11 @@ static double hostDelay(uint64_t host) {
 }
 
 @synthesize paused = _paused;
+@synthesize looping = _loop;
+@synthesize exiting = _exiting;
 @end
 
-#pragma mark - Forme d'onde
+#pragma mark - Waveform
 
 // Peak (max absolute value, all channels) of each slice of the file, for the waveform display.
 static NSDictionary *computePeaks(NSString *path, int n, id req) {
@@ -462,6 +548,7 @@ static void handle(NSString *line) {
     }
     else if ([cmd isEqualToString:@"resume"]) { if (c[@"ids"]) seekMany(instancesFor(c), @{ @"delta": @0 }, YES); else [inst resume]; }
     else if ([cmd isEqualToString:@"volume"]) [inst setVolume:(float)num(c, @"value", 1)];
+    else if ([cmd isEqualToString:@"exitLoop"]) { if (c[@"ids"]) for (SAInstance *i in instancesFor(c)) [i exitLoop]; else [inst exitLoop]; }
     else if ([cmd isEqualToString:@"stopAll"]) for (SAInstance *i in instances.allValues) [i stopWithFade:fade];
     else if ([cmd isEqualToString:@"cutAll"]) for (SAInstance *i in instances.allValues) [i cut];
     else if ([cmd isEqualToString:@"peaks"] && c[@"req"] && [c[@"file"] isKindOfClass:[NSString class]]) {
@@ -500,7 +587,8 @@ int main(void) {
             if (ticks % 5 == 0)
                 for (SAInstance *i in instances.allValues)
                     emit(@{ @"evt": @"state", @"id": i.ident, @"state": i.paused ? @"paused" : @"playing",
-                            @"pos": @([i position]), @"dur": @(i.duration) });
+                            @"pos": @([i position]), @"dur": @(i.duration),
+                            @"looping": @(i.looping), @"exiting": @(i.exiting) });
         });
         dispatch_resume(timer);
         emit(@{ @"evt": @"ready" });

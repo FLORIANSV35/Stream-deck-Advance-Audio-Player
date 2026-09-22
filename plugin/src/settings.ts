@@ -12,6 +12,9 @@ export type PlaySettings = {
   /** trim points in seconds (string typed in the inspector) */
   trimIn?: string | number;
   trimOut?: string | number;
+  /** loop sub-range within the trim, in seconds; unset/0 = loop the whole trim (string typed in the inspector) */
+  loopIn?: string | number;
+  loopOut?: string | number;
   /** behavior of a key press during playback */
   mode?: "stop" | "pause" | "restart";
   group?: string;
@@ -30,11 +33,14 @@ export type PlaySettings = {
 
 export const MAX_TRACKS = 6;
 /** `outputs`: checked outputs of the track (array). `output` / `xout1..3`: legacy format, still read when there is no `outputs`. */
-const TRACK_FIELDS = ["file", "output", "outputs", "xout1", "xout2", "xout3", "volume", "fadeIn", "fadeOut", "trimIn", "trimOut", "loop"] as const;
+const TRACK_FIELDS = [
+  "file", "output", "outputs", "xout1", "xout2", "xout3", "volume",
+  "fadeIn", "fadeOut", "trimIn", "trimOut", "loop", "loopIn", "loopOut",
+] as const;
 
 /** Fields a slave track takes from track 1 when the link is active. */
 const LINKS: [flag: "linkCut" | "linkFades" | "linkVolume", fields: string[]][] = [
-  ["linkCut", ["trimIn", "trimOut"]],
+  ["linkCut", ["trimIn", "trimOut", "loopIn", "loopOut"]],
   ["linkFades", ["fadeIn", "fadeOut"]],
   ["linkVolume", ["volume"]],
 ];
@@ -79,4 +85,10 @@ export type SeekSettings = {
   seconds?: number;
   /** skip per dial notch (s) */
   dialStep?: number;
+};
+
+export type ExitLoopSettings = {
+  /** name shown on the key (lets you have several distinct exit-loop buttons) */
+  label?: string;
+  group?: string;
 };
