@@ -21,6 +21,30 @@ The same `com.saap.audio.streamDeckPlugin` file installs on both macOS and Windo
 has not yet been validated on real audio hardware: feedback is welcome. The plugin logs are in
 `%appdata%\Elgato\StreamDeck\Plugins\com.saap.audio.sdPlugin\logs`.
 
+## How it works
+
+The plugin adds several kinds of key/dial to the **SAAP Audio** category. **Play Sound** is the actual player;
+everything else is a *control* that acts on sounds already started by a Play Sound key, rather than playing
+anything itself.
+
+- **Play Sound**: holds up to 6 tracks. Assign a file to track 1 (and, optionally, more files to tracks 2-6) in
+  its settings, then press the key — every track with a file starts together, in sync to the millisecond. Each
+  track has its own output, volume, fades, and trim/loop points, set from that same panel or drawn directly on
+  its waveform.
+- **Groups** are how a control reaches the right sounds. Give a Play Sound key a group name in its settings; a
+  control key (Volume, Skip forward/back, Set Loop Point, Exit Loop, Stop all) set to that same group only
+  affects sounds started from keys in that group, while one left on "all sounds" reaches everything currently
+  playing. This is what lets, say, one Stop All key fade out just the "ambience" group while a separate key stops
+  everything.
+- **Routing**: each track is sent to one or several outputs — an audio interface, and a specific stereo pair or
+  single channel on it — so a single key press can, for instance, send a click track to a monitor mix while the
+  rest goes to the main output.
+- **Looping**: trim in/out crops the file to a range; loop in/out (independent from trim) marks a sub-range
+  within it that repeats, with an optional crossfade to mask the seam. Set either by typing seconds into the
+  panel, by dragging the handles on the waveform, or — while the track is already playing — by pressing
+  **Set Loop Point** to capture the current position live, so a loop can be tapped in by ear instead of by
+  number.
+
 ## Features
 
 - **Play sound** (key):
