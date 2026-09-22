@@ -1,4 +1,4 @@
-// Waveform with trim handles (trim in / trim out) for each track.
+// Waveform with trim handles (trim in / trim out), and loop-in/loop-out markers when Loop is enabled, for each track.
 (() => {
   const { streamDeckClient: sd, useSettings } = SDPIComponents;
   const key = (name, n) => (n === 1 ? name : name + n);
@@ -17,24 +17,38 @@
     const canvas = root.querySelector("canvas");
     const info = root.querySelector(".wave-info");
     const ctx = canvas.getContext("2d");
-    // Slave track with linked trim: the trim shown is track 1's, not editable here.
+    // Slave track with linked trim (and loop points, same flag): shown from track 1, not editable here.
     const st = {
       file: "", duration: 0, peaks: null, msg: "Choose a file",
       ownIn: 0, ownOut: 0, mIn: 0, mOut: 0, linked: false,
       get tin() { return this.linked ? this.mIn : this.ownIn; }, set tin(v) { this.ownIn = v; },
       get tout() { return this.linked ? this.mOut : this.ownOut; }, set tout(v) { this.ownOut = v; },
+      // loop enable is always this track's own (never linked); the loop points follow the same link as trim
+      loopOn: false, ownLoopIn: 0, ownLoopOut: 0, mLoopIn: 0, mLoopOut: 0,
+      get lin() { return this.linked ? this.mLoopIn : this.ownLoopIn; }, set lin(v) { this.ownLoopIn = v; },
+      get lout() { return this.linked ? this.mLoopOut : this.ownLoopOut; }, set lout(v) { this.ownLoopOut = v; },
     };
 
     // no debounce: settings are saved when the handle is released
     const [getFile] = useSettings(key("file", n), (v) => setFile(v), 0);
     const [getIn, setIn] = useSettings(key("trimIn", n), (v) => { st.ownIn = num(v); draw(); }, 0);
     const [getOut, setOut] = useSettings(key("trimOut", n), (v) => { st.ownOut = num(v); draw(); }, 0);
-    Promise.all([getFile(), getIn(), getOut()]).then(([f, i, o]) => { st.ownIn = num(i); st.ownOut = num(o); setFile(f); });
+    const [getLoopOn] = useSettings(key("loop", n), (v) => { st.loopOn = !!v; draw(); }, 0);
+    const [getLoopIn, setLoopIn] = useSettings(key("loopIn", n), (v) => { st.ownLoopIn = num(v); draw(); }, 0);
+    const [getLoopOut, setLoopOut] = useSettings(key("loopOut", n), (v) => { st.ownLoopOut = num(v); draw(); }, 0);
+    Promise.all([getFile(), getIn(), getOut(), getLoopOn(), getLoopIn(), getLoopOut()]).then(([f, i, o, lon, li, lo]) => {
+      st.ownIn = num(i); st.ownOut = num(o); st.loopOn = !!lon; st.ownLoopIn = num(li); st.ownLoopOut = num(lo);
+      setFile(f);
+    });
     if (n > 1) {
       const [gLink] = useSettings("linkCut", (v) => { st.linked = !!v; draw(); }, 0);
       const [gMIn] = useSettings("trimIn", (v) => { st.mIn = num(v); draw(); }, 0);
       const [gMOut] = useSettings("trimOut", (v) => { st.mOut = num(v); draw(); }, 0);
-      Promise.all([gLink(), gMIn(), gMOut()]).then(([l, i, o]) => { st.linked = !!l; st.mIn = num(i); st.mOut = num(o); draw(); });
+      const [gMLoopIn] = useSettings("loopIn", (v) => { st.mLoopIn = num(v); draw(); }, 0);
+      const [gMLoopOut] = useSettings("loopOut", (v) => { st.mLoopOut = num(v); draw(); }, 0);
+      Promise.all([gLink(), gMIn(), gMOut(), gMLoopIn(), gMLoopOut()]).then(([l, i, o, li, lo]) => {
+        st.linked = !!l; st.mIn = num(i); st.mOut = num(o); st.mLoopIn = num(li); st.mLoopOut = num(lo); draw();
+      });
     }
 
     sd.sendToPropertyInspector.subscribe((ev) => {
@@ -55,8 +69,12 @@
     }
 
     const outTime = () => (st.tout > 0 && st.tout < st.duration ? st.tout : st.duration);
+    // loop-out follows the same "0 = end" convention as trim-out, but clamped to the trim range
+    const loopOutEff = () => (st.lout > 0 && st.lout < outTime() ? st.lout : outTime());
+    const loopInEff = () => Math.max(st.tin, Math.min(st.lin, loopOutEff()));
     const xOf = (t) => (t / st.duration) * canvas.clientWidth;
     const tOf = (x) => Math.max(0, Math.min(st.duration, (x / canvas.clientWidth) * st.duration));
+    const LOOP_BAND = 16; // px from the top reserved for loop-marker hit-testing, clear of the trim grips
 
     function draw() {
       const dpr = window.devicePixelRatio || 1;
@@ -91,14 +109,34 @@
         ctx.beginPath(); ctx.roundRect(x - 5, h / 2 - 12, 10, 24, 4); ctx.fill();
         ctx.fillStyle = "#052e1d"; ctx.fillRect(x - 1.5, h / 2 - 6, 1, 12); ctx.fillRect(x + 0.5, h / 2 - 6, 1, 12);
       }
-      info.textContent = (st.linked ? "Linked to track 1 · " : "") + `Start ${fmt(st.tin)} · End ${fmt(outTime())} · Length ${fmt(outTime() - st.tin)} / ${fmt(st.duration)}`;
+      // loop markers: small amber flags along the top edge, distinct from the trim handles' grips lower down
+      if (st.loopOn) {
+        const li = xOf(loopInEff()), lo = xOf(loopOutEff());
+        ctx.fillStyle = "rgba(245,158,11,0.20)";
+        ctx.fillRect(li, 0, Math.max(1, lo - li), 6);
+        for (const x of [li, lo]) {
+          ctx.fillStyle = "#f59e0b";
+          ctx.beginPath(); ctx.moveTo(x - 5, 0); ctx.lineTo(x + 5, 0); ctx.lineTo(x, 9); ctx.closePath(); ctx.fill();
+        }
+      }
+      const loopInfo = st.loopOn ? ` · Loop ${fmt(loopInEff())}–${fmt(loopOutEff())}` : "";
+      info.textContent = (st.linked ? "Linked to track 1 · " : "") + `Start ${fmt(st.tin)} · End ${fmt(outTime())} · Length ${fmt(outTime() - st.tin)} / ${fmt(st.duration)}${loopInfo}`;
     }
 
     let drag = null;
     const posX = (e) => e.clientX - canvas.getBoundingClientRect().left;
+    const posY = (e) => e.clientY - canvas.getBoundingClientRect().top;
     canvas.addEventListener("pointerdown", (e) => {
       if (!st.peaks || st.linked) return;
-      const x = posX(e);
+      const x = posX(e), y = posY(e);
+      if (st.loopOn && y < LOOP_BAND) {
+        const dIn = Math.abs(x - xOf(loopInEff())), dOut = Math.abs(x - xOf(loopOutEff()));
+        if (Math.min(dIn, dOut) <= GRIP) {
+          drag = dIn <= dOut ? "loopIn" : "loopOut";
+          canvas.setPointerCapture(e.pointerId);
+          return;
+        }
+      }
       const dIn = Math.abs(x - xOf(st.tin)), dOut = Math.abs(x - xOf(outTime()));
       drag = dIn <= dOut ? "in" : "out";
       if (Math.min(dIn, dOut) > GRIP) move(x); // click away from a handle: moves the nearest one
@@ -112,7 +150,9 @@
     function move(x) {
       const t = tOf(x), min = 0.05;
       if (drag === "in") st.tin = Math.min(t, outTime() - min);
-      else st.tout = Math.max(t, st.tin + min);
+      else if (drag === "out") st.tout = Math.max(t, st.tin + min);
+      else if (drag === "loopIn") st.lin = Math.max(st.tin, Math.min(t, loopOutEff() - min));
+      else if (drag === "loopOut") st.lout = Math.max(loopInEff() + min, Math.min(t, outTime()));
       draw();
     }
 
@@ -121,8 +161,12 @@
       const outV = !st.tout || st.tout > st.duration - 0.01 ? "" : st.tout.toFixed(2);
       if (!outV) st.tout = 0;
       setIn(inV); setOut(outV);
+      const loopInV = st.lin < 0.01 ? "" : st.lin.toFixed(2);
+      const loopOutV = !st.lout || st.lout > st.duration - 0.01 ? "" : st.lout.toFixed(2);
+      if (!loopOutV) st.lout = 0;
+      setLoopIn(loopInV); setLoopOut(loopOutV);
       // also updates the text fields shown in the panel
-      for (const [name, v] of [["trimIn", inV], ["trimOut", outV]]) {
+      for (const [name, v] of [["trimIn", inV], ["trimOut", outV], ["loopIn", loopInV], ["loopOut", loopOutV]]) {
         const el = document.querySelector(`sdpi-textfield[setting="${key(name, n)}"]`);
         if (el) el.value = v;
       }

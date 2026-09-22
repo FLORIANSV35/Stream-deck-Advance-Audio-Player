@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Exit loop</title>
+  <script src="sdpi-components.js"></script>
+  <link rel="stylesheet" href="saap.css" />
+</head>
+<body>
+  <header class="hero"><svg viewBox="0 0 36 36"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#22c55e"/></linearGradient></defs>
+<rect width="36" height="36" rx="9" fill="#1d2027"/><g fill="url(#lg)"><rect x="7" y="15" width="3" height="6" rx="1.5"/><rect x="12" y="10" width="3" height="16" rx="1.5"/><rect x="17" y="6" width="3" height="24" rx="1.5"/><rect x="22" y="12" width="3" height="12" rx="1.5"/><rect x="27" y="16" width="3" height="4" rx="1.5"/></g></svg><div><h1>Exit loop</h1><p>Stop looping, play through to the end</p></div></header>
+  <h2 class="section">Exit loop</h2>
+  <details class="card plain" open>
+    <summary><span class="badge">↴</span><span class="meta"><span class="title">Exit loop</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Display name"><sdpi-textfield setting="label" placeholder="Exit loop" maxlength="24"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Group"><sdpi-select setting="group" datasource="getGroupsStop" loading="Loading…" default="*" placeholder="All sounds"></sdpi-select></sdpi-item>
+    </div>
+  </details>
+  <sdpi-note>For playbacks that are looping between their loop-in and loop-out points: each one finishes its current pass, then plays through to its trim-out point instead of wrapping back. Has no effect on a track that isn't looping.</sdpi-note>
+
+</body>
+</html>

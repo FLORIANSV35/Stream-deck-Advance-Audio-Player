@@ -64,6 +64,8 @@ export interface PlayView {
   /** number of configured tracks */
   tracks?: number;
   loop?: boolean;
+  /** true once exitLoop was requested: still looping=false effectively, but distinct from a plain non-loop track */
+  exiting?: boolean;
 }
 
 export function playKey(v: PlayView): string {
@@ -74,8 +76,9 @@ export function playKey(v: PlayView): string {
   const center = active
     ? text(72, 84, 21, v.state === "paused" ? C.amber[0] : C.text, v.time ?? "", { weight: 600, mono: true, spacing: -0.5 })
     : `<path d="M62 62 L62 94 L90 78 Z" fill="url(#g)" stroke="url(#g)" stroke-width="5" stroke-linejoin="round"/>`;
-  // caption under the time: PAUSE (amber) or LOOP
+  // caption under the time: PAUSE (amber), ENDING (exit-loop requested, amber), or LOOP
   const hint = v.state === "paused" ? text(72, 103, 11, C.amber[1], "PAUSE", { weight: 700, spacing: 1.5 })
+    : active && v.exiting ? text(72, 103, 11, C.amber[1], "ENDING", { weight: 700, spacing: 1.5 })
     : active && v.loop ? text(72, 103, 11, C.muted, "LOOP", { weight: 700, spacing: 1.5 }) : "";
 
   return uri(frame(`
@@ -129,5 +132,18 @@ export function seekKey(o: { dir: 1 | -1; seconds: number; group: string }): str
     ${text(72, 24, 16, C.muted, clip((o.group || "ALL SOUNDS").toUpperCase(), 14), { weight: 600, spacing: 1.2 })}
     ${glyph}
     ${text(72, 124, 26, C.text, `${o.dir > 0 ? "+" : "−"}${o.seconds} s`, { weight: 700, mono: true, spacing: -0.5 })}
+  `));
+}
+
+export function exitLoopKey(o: { label: string; group?: string }): string {
+  // a loop arrow left open, with an arrowhead breaking away tangentially — "stop looping, move on"
+  const arc = `<path d="M86 61 A22 22 0 1 1 57 60" fill="none" stroke="url(#b)" stroke-width="7" stroke-linecap="round"/>`;
+  const breakout = `<path d="M57 60 L38 76" stroke="url(#b)" stroke-width="7" stroke-linecap="round"/>
+    <path d="M43 66 L38 76 L49 78" fill="none" stroke="url(#b)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`;
+  return uri(frame(`
+    ${text(72, 24, 16, C.muted, clip((o.group || "ALL SOUNDS").toUpperCase(), 14), { weight: 600, spacing: 1.2 })}
+    <circle cx="72" cy="78" r="${RING_R}" fill="none" stroke="${C.faint}" stroke-width="7"/>
+    ${arc}${breakout}
+    ${text(72, 137, 13, C.text, clip(o.label, 16), { weight: 500 })}
   `));
 }

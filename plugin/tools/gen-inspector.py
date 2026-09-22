@@ -49,6 +49,8 @@ def track_fields(n):
     out += item("Trim in (s)", f'<sdpi-textfield setting="{k("trimIn")}" placeholder="0 = start of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', link("cut"))
     out += item("Trim out (s)", f'<sdpi-textfield setting="{k("trimOut")}" placeholder="0 = end of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', link("cut"))
     out += item("Loop", f'<sdpi-checkbox setting="{k("loop")}" label="Loop playback"></sdpi-checkbox>')
+    out += item("Loop in (s)", f'<sdpi-textfield setting="{k("loopIn")}" placeholder="0 = start of trim" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', f' data-loopfield="{n}"' + link("cut"))
+    out += item("Loop out (s)", f'<sdpi-textfield setting="{k("loopOut")}" placeholder="0 = end of trim" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', f' data-loopfield="{n}"' + link("cut"))
     return out
 
 def play():
@@ -94,6 +96,14 @@ def volume():
     body += '  <sdpi-note>On a dial: rotate = volume, press or touch = mute. The step applies to each notch.</sdpi-note>\n'
     return page("Volume", "Master or per group of sounds", body)
 
+def exitloop():
+    body = '  <h2 class="section">Exit loop</h2>\n' + card("↴", "Exit loop",
+        item("Display name", '<sdpi-textfield setting="label" placeholder="Exit loop" maxlength="24"></sdpi-textfield>') +
+        item("Group", '<sdpi-select setting="group" datasource="getGroupsStop" loading="Loading…" default="*" placeholder="All sounds"></sdpi-select>'),
+        open=True, cls="plain")
+    body += '  <sdpi-note>For playbacks that are looping between their loop-in and loop-out points: each one finishes its current pass, then plays through to its trim-out point instead of wrapping back. Has no effect on a track that isn\'t looping.</sdpi-note>\n'
+    return page("Exit loop", "Stop looping, play through to the end", body)
+
 def stopall():
     body = '  <h2 class="section">Stop</h2>\n' + card("■", "Stop all",
         item("Display name", '<sdpi-textfield setting="label" placeholder="Stop all" maxlength="24"></sdpi-textfield>') +
@@ -119,7 +129,7 @@ def seek():
     body += '  <sdpi-note>Acts on all playbacks of the chosen group, together and without offset. Dial: rotate = scrub, press or touch = pause / resume.</sdpi-note>\n'
     return page("Skip forward / back", "Move within the playback", body)
 
-for name, fn in [("play", play), ("volume", volume), ("stopall", stopall), ("seek", seek)]:
+for name, fn in [("play", play), ("volume", volume), ("stopall", stopall), ("seek", seek), ("exitloop", exitloop)]:
     with open(os.path.join(UI, f"{name}.html"), "w") as f:
         f.write(fn())
 print("ok")

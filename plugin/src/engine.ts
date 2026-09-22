@@ -28,11 +28,14 @@ export interface PlayCommand {
   fadeOut: number;
   trimIn: number;
   trimOut: number;
+  /** loop sub-range within the trim; 0/unset = loop the whole trim */
+  loopIn: number;
+  loopOut: number;
 }
 
 type EngineEvents = {
   started: [id: string, duration: number];
-  state: [id: string, state: "playing" | "paused", pos: number, dur: number];
+  state: [id: string, state: "playing" | "paused", pos: number, dur: number, looping: boolean, exiting: boolean];
   ended: [id: string, reason: "finished" | "stopped" | "error", message?: string];
   /** the engine restarted: all running playbacks are lost */
   reset: [];
@@ -103,7 +106,7 @@ class Engine extends EventEmitter<EngineEvents> {
         this.emit("started", m.id, m.duration);
         break;
       case "state":
-        this.emit("state", m.id, m.state, m.pos, m.dur);
+        this.emit("state", m.id, m.state, m.pos, m.dur, !!m.looping, !!m.exiting);
         break;
       case "ended":
         this.emit("ended", m.id, m.reason, m.message);
@@ -150,6 +153,10 @@ class Engine extends EventEmitter<EngineEvents> {
   pause(id: string): void { this.#send({ cmd: "pause", id }); }
   resume(id: string): void { this.#send({ cmd: "resume", id }); }
   volume(id: string, value: number): void { this.#send({ cmd: "volume", id, value }); }
+  /** Stops wrapping back to loopIn: playback finishes the current iteration, then plays through to trimOut. */
+  exitLoop(id: string): void { this.#send({ cmd: "exitLoop", id }); }
+  /** Same, for several playbacks (e.g. all the tracks of a key, or a whole group). */
+  exitLoopMany(ids: string[]): void { this.#send({ cmd: "exitLoop", ids }); }
 }
 
 export const engine = new Engine();

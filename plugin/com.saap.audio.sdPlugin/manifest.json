@@ -95,6 +95,22 @@
       }
     },
     {
+      "UUID": "com.saap.audio.exitloop",
+      "Name": "Exit Loop",
+      "Tooltip": "Stops looping playbacks (all, or a group): each finishes its current iteration, then plays through to its trim-out point.",
+      "Icon": "imgs/actions/exitloop",
+      "Controllers": [
+        "Keypad"
+      ],
+      "PropertyInspectorPath": "ui/exitloop.html",
+      "States": [
+        {
+          "Image": "imgs/actions/exitloop-key",
+          "ShowTitle": false
+        }
+      ]
+    },
+    {
       "UUID": "com.saap.audio.stopall",
       "Name": "Stop all",
       "Tooltip": "Stops all playbacks, or those of one group.",
