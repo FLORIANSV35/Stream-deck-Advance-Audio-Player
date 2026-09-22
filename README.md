@@ -1,7 +1,7 @@
 # SAAP — advanced audio player for Stream Deck
 
 Play several audio files at once from a single key, send each one to the audio interface and outputs you choose,
-and control it live. Works on **macOS** and **Windows** (Windows is in beta).
+and control it live. Works on **macOS** and **Windows**.
 
 ## Install
 
@@ -15,11 +15,10 @@ Requirements: macOS 12+ (Apple Silicon and Intel) or Windows 10/11, and Stream D
 > but if macOS still shows "Apple could not verify saap-engine", open System Settings → Privacy & Security
 > and click "Open Anyway".
 
-### Windows (beta)
+### Windows
 
-The Windows build is published as a **pre-release** (see the [releases](../../releases) page). The same
-`com.saap.audio.streamDeckPlugin` file installs on both macOS and Windows. It uses WASAPI (no ASIO) and has not yet
-been validated on real audio hardware: feedback is welcome. The plugin logs are in
+The same `com.saap.audio.streamDeckPlugin` file installs on both macOS and Windows. It uses WASAPI (no ASIO) and
+has not yet been validated on real audio hardware: feedback is welcome. The plugin logs are in
 `%appdata%\Elgato\StreamDeck\Plugins\com.saap.audio.sdPlugin\logs`.
 
 ## Features

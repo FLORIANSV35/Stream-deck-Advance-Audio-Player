@@ -3,6 +3,8 @@
 //! (the same as the macOS engine, `engine/src/main.m`).
 
 mod audio;
+#[cfg(target_os = "macos")]
+mod mac_devices;
 mod voice;
 
 use std::collections::HashMap;
