@@ -25,6 +25,7 @@ export type PlaySettings = {
   linkCut?: boolean;
   linkFades?: boolean;
   linkVolume?: boolean;
+  linkLoop?: boolean;
   /** new group typed in the inspector: becomes `group`, then is cleared */
   newGroup?: string;
   /** tracks 2 to 6: same fields as track 1 with the number as a suffix (file2, output2, volume2…) */
@@ -39,10 +40,11 @@ const TRACK_FIELDS = [
 ] as const;
 
 /** Fields a slave track takes from track 1 when the link is active. */
-const LINKS: [flag: "linkCut" | "linkFades" | "linkVolume", fields: string[]][] = [
-  ["linkCut", ["trimIn", "trimOut", "loopIn", "loopOut"]],
+const LINKS: [flag: "linkCut" | "linkFades" | "linkVolume" | "linkLoop", fields: string[]][] = [
+  ["linkCut", ["trimIn", "trimOut"]],
   ["linkFades", ["fadeIn", "fadeOut"]],
   ["linkVolume", ["volume"]],
+  ["linkLoop", ["loopIn", "loopOut"]],
 ];
 
 /** Effective settings of track n (1 = fields without suffix), merged with the key's shared settings. */

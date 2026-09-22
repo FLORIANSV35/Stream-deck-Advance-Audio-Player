@@ -49,8 +49,8 @@ def track_fields(n):
     out += item("Trim in (s)", f'<sdpi-textfield setting="{k("trimIn")}" placeholder="0 = start of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', link("cut"))
     out += item("Trim out (s)", f'<sdpi-textfield setting="{k("trimOut")}" placeholder="0 = end of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', link("cut"))
     out += item("Loop", f'<sdpi-checkbox setting="{k("loop")}" label="Loop playback"></sdpi-checkbox>')
-    out += item("Loop in (s)", f'<sdpi-textfield setting="{k("loopIn")}" placeholder="0 = start of trim" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', f' data-loopfield="{n}"' + link("cut"))
-    out += item("Loop out (s)", f'<sdpi-textfield setting="{k("loopOut")}" placeholder="0 = end of trim" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', f' data-loopfield="{n}"' + link("cut"))
+    out += item("Loop in (s)", f'<sdpi-textfield setting="{k("loopIn")}" placeholder="0 = start of trim" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', f' data-loopfield="{n}"' + link("loop"))
+    out += item("Loop out (s)", f'<sdpi-textfield setting="{k("loopOut")}" placeholder="0 = end of trim" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', f' data-loopfield="{n}"' + link("loop"))
     return out
 
 def play():
@@ -64,7 +64,8 @@ def play():
     body += card("⛓", "Track linking", 
         item("Trim", '<sdpi-checkbox setting="linkCut" label="Tracks 2-6: same trim points as track 1"></sdpi-checkbox>') +
         item("Fades", '<sdpi-checkbox setting="linkFades" label="Tracks 2-6: same fades as track 1"></sdpi-checkbox>') +
-        item("Volume", '<sdpi-checkbox setting="linkVolume" label="Tracks 2-6: same volume as track 1"></sdpi-checkbox>'),
+        item("Volume", '<sdpi-checkbox setting="linkVolume" label="Tracks 2-6: same volume as track 1"></sdpi-checkbox>') +
+        item("Loop points", '<sdpi-checkbox setting="linkLoop" label="Tracks 2-6: same loop in/out as track 1"></sdpi-checkbox>'),
         cls="plain", sub="Track 1 is the master")
     body += '  <h2 class="section">Key</h2>\n'
     body += card("◉", "Behavior", 
