@@ -117,15 +117,15 @@ static int defaultDeviceChannels(void) {
     BOOL _exiting;
     // Crossfade on every wrap, masking the click of a non-zero-crossing loop point: _player keeps doing
     // its normal, unmodified instant wrap (so the loop's rhythmic length is untouched), while a second,
-    // otherwise-idle player node (_fadePlayer) plays a one-shot copy of the tail *past* _loopEnd — the
-    // material a hard cut would never let you hear — ramped down, right as _player ramps up from silence
-    // after the wrap. AVAudioPlayerNode can't overlap two segments on one node, hence the second node.
-    // Detected and driven from -position in -tick (like the auto fade-out near _end below), not from the
-    // scheduling code, since chunks are scheduled up to kLoopChunkSeconds ahead of when they actually play.
+    // otherwise-idle player node (_fadePlayer) plays one continuous one-shot spanning _loopEnd, rising as
+    // _player falls approaching the wrap and falling back as _player rises after it — so something is
+    // always audible regardless of exactly when the wrap happens inside that window. AVAudioPlayerNode
+    // can't overlap two segments on one node, hence the second node. Armed predictively from -position in
+    // -tick (like the auto fade-out near _end below), not reactively from the scheduling code, since
+    // reacting only after detecting the wrap would always be too late to hide it.
     double _loopFade;
     AVAudioPlayerNode *_fadePlayer;
-    double _lastLoopPos;
-    double _fadeArmTime;   // nowSec() a wrap was last detected, or a negative value while not crossfading
+    double _fadeArmTime;   // nowSec() the crossfade was armed, or a negative value while not crossfading
     AVAudioFile *_file; // opened once and reused for every scheduled segment/chunk (see -scheduleAVFrom:to:)
     // Bookkeeping of the segment currently at the front of the AVAudioPlayerNode queue (the one actually
     // playing), used to compute -position: since segments now have varying lengths (intro/loop/outro),
@@ -433,45 +433,54 @@ static double hostDelay(uint64_t host) {
     }
     // Crossfade on every wrap. _player always does its normal, unmodified instant wrap in the actual
     // scheduled audio — that switch is a real, sample-accurate jump, and -tick only polls at ~50 Hz, so
-    // reacting to it *after* the fact is always too late: whatever volume _player had going in is what
-    // the jump is heard at. So _player must already be down near silence *before* it happens — hence the
-    // predictive fade-out here, driven by -position approaching _loopEnd, exactly like the auto fade-out
-    // near _end above. Once the wrap is (reactively) detected, _player ramps back up from silence while a
-    // second, otherwise-idle player node (_fadePlayer) plays a one-shot copy of the tail past _loopEnd —
-    // the material a hard cut would never let you hear — ramped down over the same window, so what fills
-    // the dip is a genuine crossfade rather than near-silence.
+    // reacting to the wrap *after* the fact is always too late to hide it (whatever volume _player had
+    // going in is what the sample-accurate jump is heard at, since -tick only polls at ~50 Hz) — and
+    // fading _player down on its own, with nothing else playing, is just an audible dip to silence and
+    // back, not a crossfade. So instead, _fadePlayer plays a single continuous one-shot spanning the whole
+    // window *centered on* _loopEnd (both before and after it) as soon as -position gets within _loopFade
+    // of it: _fadePlayer rises while _player falls, then _fadePlayer falls back while _player (now past
+    // its wrap, silent, restarting from _loopStart) rises — so at every instant, at least one of the two
+    // is at meaningful volume, whenever the actual wrap happens to fall within that window.
     float mainEnv = 1;
-    if (_loop && !_exiting && _loopFade > 0) {
-        double pos = [self position];
-        double loopOutSec = (double)(_loopEnd - _start) / _rate;
-        double toWrap = loopOutSec - pos;
-        if (toWrap <= _loopFade) {
-            float p = (float)(1.0 - MAX(0, toWrap) / _loopFade);
-            mainEnv = cosf(p * M_PI_2); // ramps down to ~0 by the time -position reaches _loopEnd
+    if (_loop && _loopFade > 0) {
+        // only arm a *new* crossfade while not exiting: once exiting, the scheduling side stops wrapping
+        // at all (it plays straight through into the outro instead), so there is nothing to cross into.
+        // An *already-armed* crossfade, though, keeps running its envelope to completion either way: if
+        // exiting lands mid-crossfade, main ends up not actually wrapping (it keeps playing the same
+        // unwrapped content the whole time, same as _fadePlayer's one-shot spanning that same region), so
+        // this just plays out as a brief, harmless doubling instead of an abrupt jump back to full volume.
+        if (!_exiting) {
+            double pos = [self position];
+            double loopOutSec = (double)(_loopEnd - _start) / _rate;
+            double toWrap = loopOutSec - pos;
+            if (_fadeArmTime < 0 && toWrap <= _loopFade && toWrap >= 0) {
+                _fadeArmTime = nowSec();
+                [self scheduleFadeTail];
+            }
         }
-        if (pos < _lastLoopPos - 0.05) { // position jumped backward: a wrap just happened
-            _fadeArmTime = nowSec();
-            [self scheduleFadeTail];
-        }
-        _lastLoopPos = pos;
         if (_fadeArmTime >= 0) {
-            float p = (float)MIN(1, MAX(0, (nowSec() - _fadeArmTime) / _loopFade));
-            mainEnv = MIN(mainEnv, sinf(p * M_PI_2)); // ramps back up; MIN so it can't override the pre-wrap dip
-            _fadePlayer.volume = _curGain * _fade * cosf(p * M_PI_2);
-            if (p >= 1) _fadeArmTime = -1; // crossfade finished; the one-shot tail ends on its own
+            float p = (float)MIN(1, MAX(0, (nowSec() - _fadeArmTime) / (_loopFade * 2.0)));
+            // first half: _player falls (cos) while _fadePlayer rises (sin); second half: mirrored
+            float q = p < 0.5f ? p * 2.0f : (p - 0.5f) * 2.0f;
+            mainEnv = p < 0.5f ? cosf(q * M_PI_2) : sinf(q * M_PI_2);
+            float fadeEnv = p < 0.5f ? sinf(q * M_PI_2) : cosf(q * M_PI_2);
+            _fadePlayer.volume = _curGain * _fade * fadeEnv;
+            if (p >= 1) _fadeArmTime = -1; // crossfade finished; the one-shot ends on its own
         }
     }
     _curGain += (_gain - _curGain) * 0.3f;
     _player.volume = _curGain * _fade * mainEnv;
 }
 
-// One-shot playback of the tail past _loopEnd (material a hard cut would never let you hear), used to
-// crossfade with the wrap. Independent of _player's own chunked scheduling — _fadePlayer plays this
-// single segment and then falls silent on its own.
+// One-shot playback spanning _loopFade seconds on either side of _loopEnd — both the tail approaching the
+// wrap and the material past it that a hard cut would never let you hear — used to crossfade with it.
+// Independent of _player's own chunked scheduling — _fadePlayer plays this single segment and falls
+// silent on its own once it's done.
 - (void)scheduleFadeTail {
-    AVAudioFramePosition from = _loopEnd;
-    AVAudioFramePosition to = MIN(_end, _loopEnd + (AVAudioFramePosition)(_loopFade * _rate));
-    if (to <= from) return; // no room past _loopEnd (shouldn't happen: _loopFade is clamped for this)
+    AVAudioFramePosition span = (AVAudioFramePosition)(_loopFade * _rate);
+    AVAudioFramePosition from = MAX(_start, _loopEnd - span);
+    AVAudioFramePosition to = MIN(_end, _loopEnd + span);
+    if (to <= from) return; // no room around _loopEnd (shouldn't happen: _loopFade is clamped for this)
     [_fadePlayer stop];
     [_fadePlayer scheduleSegment:_file startingFrame:from frameCount:(AVAudioFrameCount)(to - from) atTime:nil
       completionCallbackType:AVAudioPlayerNodeCompletionDataConsumed completionHandler:nil];
