@@ -15,7 +15,7 @@ export type PlaySettings = {
   /** loop sub-range within the trim, in seconds; unset/0 = loop the whole trim (string typed in the inspector) */
   loopIn?: string | number;
   loopOut?: string | number;
-  /** fade out approaching loopOut, mirrored as a fade in just after loopIn, on every wrap (s) */
+  /** crossfade duration (s) on every wrap: the tail past loopOut blends into the head at loopIn */
   loopFade?: string | number;
   /** behavior of a key press during playback */
   mode?: "stop" | "pause" | "restart";
