@@ -36,6 +36,7 @@ fn params(c: &Value) -> Params {
         trim_out: num(c, "trimOut", 0.0),
         loop_in: num(c, "loopIn", 0.0),
         loop_out: num(c, "loopOut", 0.0),
+        loop_fade: num(c, "loopFade", 0.0),
     }
 }
 

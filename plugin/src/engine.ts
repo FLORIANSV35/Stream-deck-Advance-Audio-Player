@@ -31,6 +31,8 @@ export interface PlayCommand {
   /** loop sub-range within the trim; 0/unset = loop the whole trim */
   loopIn: number;
   loopOut: number;
+  /** fade (s) approaching loopOut, mirrored just after loopIn, on every wrap; 0 = instant wrap */
+  loopFade: number;
 }
 
 type EngineEvents = {

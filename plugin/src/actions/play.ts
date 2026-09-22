@@ -190,6 +190,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
           fadeIn: seconds(t.fadeIn as number), fadeOut: seconds(t.fadeOut as number),
           trimIn: seconds(t.trimIn as string), trimOut: seconds(t.trimOut as string),
           loopIn: seconds(t.loopIn as string), loopOut: seconds(t.loopOut as string),
+          loopFade: seconds(t.loopFade as string),
         });
         playbacks.set(id, { id, settings: t, state: "playing", pos: 0, dur: 0, looping: !!t.loop, exiting: false });
       });

@@ -115,6 +115,14 @@ static int defaultDeviceChannels(void) {
     // time playback reaches _loopEnd it continues into the outro instead of wrapping back to _loopStart.
     AVAudioFramePosition _loopStart, _loopEnd;
     BOOL _exiting;
+    // Fade approaching _loopEnd, mirrored just after _loopStart, on every wrap (declicks a non-zero-
+    // crossing loop point). Computed from -position in -tick (like the auto fade-out near _end below),
+    // not tied to the scheduling code, since chunks are scheduled up to kLoopChunkSeconds ahead of when
+    // they actually play — an envelope driven by scheduling time would run early relative to the audio.
+    double _loopFade;
+    float _loopEnv;
+    BOOL _loopWrappedOnce;   // distinguishes the intro passing through _loopStart from an actual wrap
+    double _lastLoopPos;
     AVAudioFile *_file; // opened once and reused for every scheduled segment/chunk (see -scheduleAVFrom:to:)
     // Bookkeeping of the segment currently at the front of the AVAudioPlayerNode queue (the one actually
     // playing), used to compute -position: since segments now have varying lengths (intro/loop/outro),
@@ -160,9 +168,12 @@ static double num(NSDictionary *c, NSString *k, double d) {
     _loopStart = loopInS > 0 ? MIN(MAX(_start, (AVAudioFramePosition)(loopInS * _rate)), _end) : _start;
     _loopEnd = loopOutS > 0 ? MIN(_end, MAX(_loopStart, (AVAudioFramePosition)(loopOutS * _rate))) : _end;
     if (_loopEnd <= _loopStart + 1) { _loopStart = _start; _loopEnd = _end; } // invalid range: fall back to the full trim
+    // clamp so the fade-out and fade-in zones never overlap: the loop always has a moment at full volume
+    _loopFade = MAX(0, MIN(num(c, @"loopFade", 0), (double)(_loopEnd - _loopStart) / _rate / 2.0));
     _autoFadeOut = num(c, @"fadeOut", 0);
     _gain = _curGain = MAX(0, MIN(1, (float)num(c, @"volume", 1)));
     _fade = 1;
+    _loopEnv = 1;
 
     _engine = [AVAudioEngine new];
     _player = [AVAudioPlayerNode new];
@@ -412,8 +423,31 @@ static double hostDelay(uint64_t host) {
             [self startRampTo:0 dur:MAX(remaining, 0.05) stop:NO];
         }
     }
+    // fade approaching the loop wrap, mirrored just after it — purely a function of position (like the
+    // auto fade-out above), recomputed fresh every tick rather than a stateful ramp, so it stays correct
+    // regardless of exactly when the underlying scheduling actually wraps
+    if (_loop && !_exiting && _loopFade > 0) {
+        double pos = [self position];
+        double loopOutSec = (double)(_loopEnd - _start) / _rate, loopInSec = (double)(_loopStart - _start) / _rate;
+        float outEnv = 1, inEnv = 1;
+        double toWrap = loopOutSec - pos;
+        if (toWrap <= _loopFade) {
+            float p = (float)(1.0 - MAX(0, toWrap) / _loopFade);
+            outEnv = cosf(p * M_PI_2);
+        }
+        double sinceIn = pos - loopInSec;
+        if (_loopWrappedOnce && sinceIn >= 0 && sinceIn <= _loopFade) {
+            float p = (float)(sinceIn / _loopFade);
+            inEnv = sinf(p * M_PI_2);
+        }
+        _loopEnv = MIN(outEnv, inEnv);
+        if (pos < _lastLoopPos - 0.05) _loopWrappedOnce = YES; // position jumped backward: a wrap occurred
+        _lastLoopPos = pos;
+    } else {
+        _loopEnv = 1;
+    }
     _curGain += (_gain - _curGain) * 0.3f;
-    _player.volume = _curGain * _fade;
+    _player.volume = _curGain * _fade * _loopEnv;
 }
 
 - (void)finish:(NSString *)reason {
