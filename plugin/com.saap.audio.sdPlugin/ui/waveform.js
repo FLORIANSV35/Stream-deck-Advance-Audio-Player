@@ -9,6 +9,17 @@
   };
   const GRIP = 12; // grab zone of a handle, in px
 
+  // Every sdpi-* element dispatches "valuechange" on itself the instant its own value changes — this is
+  // what lets a *different* widget on the same page (here, the waveform canvas) react immediately to, say,
+  // track 1's trim field or another track's Loop checkbox. Relying only on useSettings' callback (which
+  // fires from a "didReceiveSettings" message coming back over the wire) does not reflect same-page
+  // changes made by a sibling widget until the panel is reloaded, e.g. by switching to another key and back.
+  function watch(settingName, onChange) {
+    document.querySelectorAll(`[setting="${CSS.escape(settingName)}"]`).forEach((el) => {
+      el.addEventListener("valuechange", () => onChange(el.value));
+    });
+  }
+
   document.querySelectorAll(".wave").forEach(init);
 
   function init(root) {
@@ -17,38 +28,63 @@
     const canvas = root.querySelector("canvas");
     const info = root.querySelector(".wave-info");
     const ctx = canvas.getContext("2d");
-    // Slave track with linked trim (and loop points, same flag): shown from track 1, not editable here.
+    // Slave track: trim and loop points can each be linked to track 1 independently.
     const st = {
       file: "", duration: 0, peaks: null, msg: "Choose a file",
-      ownIn: 0, ownOut: 0, mIn: 0, mOut: 0, linked: false,
-      get tin() { return this.linked ? this.mIn : this.ownIn; }, set tin(v) { this.ownIn = v; },
-      get tout() { return this.linked ? this.mOut : this.ownOut; }, set tout(v) { this.ownOut = v; },
-      // loop enable is always this track's own (never linked); the loop points follow the same link as trim
-      loopOn: false, ownLoopIn: 0, ownLoopOut: 0, mLoopIn: 0, mLoopOut: 0,
-      get lin() { return this.linked ? this.mLoopIn : this.ownLoopIn; }, set lin(v) { this.ownLoopIn = v; },
-      get lout() { return this.linked ? this.mLoopOut : this.ownLoopOut; }, set lout(v) { this.ownLoopOut = v; },
+      ownIn: 0, ownOut: 0, mIn: 0, mOut: 0, trimLinked: false,
+      get tin() { return this.trimLinked ? this.mIn : this.ownIn; }, set tin(v) { this.ownIn = v; },
+      get tout() { return this.trimLinked ? this.mOut : this.ownOut; }, set tout(v) { this.ownOut = v; },
+      // loop enable is always this track's own (never linked); only the loop points can follow track 1
+      loopOn: false, ownLoopIn: 0, ownLoopOut: 0, mLoopIn: 0, mLoopOut: 0, loopLinked: false,
+      get lin() { return this.loopLinked ? this.mLoopIn : this.ownLoopIn; }, set lin(v) { this.ownLoopIn = v; },
+      get lout() { return this.loopLinked ? this.mLoopOut : this.ownLoopOut; }, set lout(v) { this.ownLoopOut = v; },
     };
 
     // no debounce: settings are saved when the handle is released
     const [getFile] = useSettings(key("file", n), (v) => setFile(v), 0);
-    const [getIn, setIn] = useSettings(key("trimIn", n), (v) => { st.ownIn = num(v); draw(); }, 0);
-    const [getOut, setOut] = useSettings(key("trimOut", n), (v) => { st.ownOut = num(v); draw(); }, 0);
-    const [getLoopOn] = useSettings(key("loop", n), (v) => { st.loopOn = !!v; draw(); }, 0);
-    const [getLoopIn, setLoopIn] = useSettings(key("loopIn", n), (v) => { st.ownLoopIn = num(v); draw(); }, 0);
-    const [getLoopOut, setLoopOut] = useSettings(key("loopOut", n), (v) => { st.ownLoopOut = num(v); draw(); }, 0);
+    const onIn = (v) => { st.ownIn = num(v); draw(); };
+    const onOut = (v) => { st.ownOut = num(v); draw(); };
+    const onLoopOn = (v) => { st.loopOn = !!v; draw(); };
+    const onLoopIn = (v) => { st.ownLoopIn = num(v); draw(); };
+    const onLoopOut = (v) => { st.ownLoopOut = num(v); draw(); };
+    const [getIn, setIn] = useSettings(key("trimIn", n), onIn, 0);
+    const [getOut, setOut] = useSettings(key("trimOut", n), onOut, 0);
+    const [getLoopOn] = useSettings(key("loop", n), onLoopOn, 0);
+    const [getLoopIn, setLoopIn] = useSettings(key("loopIn", n), onLoopIn, 0);
+    const [getLoopOut, setLoopOut] = useSettings(key("loopOut", n), onLoopOut, 0);
     Promise.all([getFile(), getIn(), getOut(), getLoopOn(), getLoopIn(), getLoopOut()]).then(([f, i, o, lon, li, lo]) => {
       st.ownIn = num(i); st.ownOut = num(o); st.loopOn = !!lon; st.ownLoopIn = num(li); st.ownLoopOut = num(lo);
       setFile(f);
     });
+    watch(key("trimIn", n), onIn);
+    watch(key("trimOut", n), onOut);
+    watch(key("loop", n), onLoopOn);
+    watch(key("loopIn", n), onLoopIn);
+    watch(key("loopOut", n), onLoopOut);
+
     if (n > 1) {
-      const [gLink] = useSettings("linkCut", (v) => { st.linked = !!v; draw(); }, 0);
-      const [gMIn] = useSettings("trimIn", (v) => { st.mIn = num(v); draw(); }, 0);
-      const [gMOut] = useSettings("trimOut", (v) => { st.mOut = num(v); draw(); }, 0);
-      const [gMLoopIn] = useSettings("loopIn", (v) => { st.mLoopIn = num(v); draw(); }, 0);
-      const [gMLoopOut] = useSettings("loopOut", (v) => { st.mLoopOut = num(v); draw(); }, 0);
-      Promise.all([gLink(), gMIn(), gMOut(), gMLoopIn(), gMLoopOut()]).then(([l, i, o, li, lo]) => {
-        st.linked = !!l; st.mIn = num(i); st.mOut = num(o); st.mLoopIn = num(li); st.mLoopOut = num(lo); draw();
+      const onTrimLink = (v) => { st.trimLinked = !!v; draw(); };
+      const onLoopLink = (v) => { st.loopLinked = !!v; draw(); };
+      const onMIn = (v) => { st.mIn = num(v); draw(); };
+      const onMOut = (v) => { st.mOut = num(v); draw(); };
+      const onMLoopIn = (v) => { st.mLoopIn = num(v); draw(); };
+      const onMLoopOut = (v) => { st.mLoopOut = num(v); draw(); };
+      const [gTrimLink] = useSettings("linkCut", onTrimLink, 0);
+      const [gLoopLink] = useSettings("linkLoop", onLoopLink, 0);
+      const [gMIn] = useSettings("trimIn", onMIn, 0);
+      const [gMOut] = useSettings("trimOut", onMOut, 0);
+      const [gMLoopIn] = useSettings("loopIn", onMLoopIn, 0);
+      const [gMLoopOut] = useSettings("loopOut", onMLoopOut, 0);
+      Promise.all([gTrimLink(), gLoopLink(), gMIn(), gMOut(), gMLoopIn(), gMLoopOut()]).then(([tl, ll, i, o, li, lo]) => {
+        st.trimLinked = !!tl; st.loopLinked = !!ll; st.mIn = num(i); st.mOut = num(o); st.mLoopIn = num(li); st.mLoopOut = num(lo);
+        draw();
       });
+      watch("linkCut", onTrimLink);
+      watch("linkLoop", onLoopLink);
+      watch("trimIn", onMIn);
+      watch("trimOut", onMOut);
+      watch("loopIn", onMLoopIn);
+      watch("loopOut", onMLoopOut);
     }
 
     sd.sendToPropertyInspector.subscribe((ev) => {
@@ -119,33 +155,36 @@
           ctx.beginPath(); ctx.moveTo(x - 5, 0); ctx.lineTo(x + 5, 0); ctx.lineTo(x, 9); ctx.closePath(); ctx.fill();
         }
       }
+      const linkedBits = [st.trimLinked && "trim", st.loopLinked && "loop"].filter(Boolean);
+      const linkedInfo = linkedBits.length ? `${linkedBits.join(" & ")} linked to track 1 · ` : "";
       const loopInfo = st.loopOn ? ` · Loop ${fmt(loopInEff())}–${fmt(loopOutEff())}` : "";
-      info.textContent = (st.linked ? "Linked to track 1 · " : "") + `Start ${fmt(st.tin)} · End ${fmt(outTime())} · Length ${fmt(outTime() - st.tin)} / ${fmt(st.duration)}${loopInfo}`;
+      info.textContent = linkedInfo + `Start ${fmt(st.tin)} · End ${fmt(outTime())} · Length ${fmt(outTime() - st.tin)} / ${fmt(st.duration)}${loopInfo}`;
     }
 
     let drag = null;
     const posX = (e) => e.clientX - canvas.getBoundingClientRect().left;
     const posY = (e) => e.clientY - canvas.getBoundingClientRect().top;
     canvas.addEventListener("pointerdown", (e) => {
-      if (!st.peaks || st.linked) return;
+      if (!st.peaks) return;
       const x = posX(e), y = posY(e);
       if (st.loopOn && y < LOOP_BAND) {
+        if (st.loopLinked) return; // read-only: loop points come from track 1 here
         const dIn = Math.abs(x - xOf(loopInEff())), dOut = Math.abs(x - xOf(loopOutEff()));
-        if (Math.min(dIn, dOut) <= GRIP) {
-          drag = dIn <= dOut ? "loopIn" : "loopOut";
-          canvas.setPointerCapture(e.pointerId);
-          return;
-        }
+        drag = dIn <= dOut ? "loopIn" : "loopOut";
+        if (Math.min(dIn, dOut) > GRIP) move(x); // click away from a handle: moves the nearest one
+        canvas.setPointerCapture(e.pointerId);
+        return;
       }
+      if (st.trimLinked) return; // read-only: trim comes from track 1 here
       const dIn = Math.abs(x - xOf(st.tin)), dOut = Math.abs(x - xOf(outTime()));
       drag = dIn <= dOut ? "in" : "out";
-      if (Math.min(dIn, dOut) > GRIP) move(x); // click away from a handle: moves the nearest one
+      if (Math.min(dIn, dOut) > GRIP) move(x);
       canvas.setPointerCapture(e.pointerId);
     });
     canvas.addEventListener("pointermove", (e) => { if (drag) move(posX(e)); });
     canvas.addEventListener("pointerup", () => { if (drag) { drag = null; commit(); } });
     canvas.addEventListener("dblclick", () => {
-      if (st.linked) return; st.tin = 0; st.tout = 0; draw(); commit(); }); // double-click: whole file
+      if (st.trimLinked) return; st.tin = 0; st.tout = 0; draw(); commit(); }); // double-click: whole file
 
     function move(x) {
       const t = tOf(x), min = 0.05;
@@ -156,19 +195,27 @@
       draw();
     }
 
+    function setField(name, v) {
+      const el = document.querySelector(`sdpi-textfield[setting="${key(name, n)}"]`);
+      if (el) el.value = v;
+    }
+
     function commit() {
-      const inV = st.tin < 0.01 ? "" : st.tin.toFixed(2);
-      const outV = !st.tout || st.tout > st.duration - 0.01 ? "" : st.tout.toFixed(2);
-      if (!outV) st.tout = 0;
-      setIn(inV); setOut(outV);
-      const loopInV = st.lin < 0.01 ? "" : st.lin.toFixed(2);
-      const loopOutV = !st.lout || st.lout > st.duration - 0.01 ? "" : st.lout.toFixed(2);
-      if (!loopOutV) st.lout = 0;
-      setLoopIn(loopInV); setLoopOut(loopOutV);
-      // also updates the text fields shown in the panel
-      for (const [name, v] of [["trimIn", inV], ["trimOut", outV], ["loopIn", loopInV], ["loopOut", loopOutV]]) {
-        const el = document.querySelector(`sdpi-textfield[setting="${key(name, n)}"]`);
-        if (el) el.value = v;
+      // only save what this track actually owns: re-saving a linked (read-only) value back into this
+      // track's own hidden setting would silently overwrite it with track 1's current value
+      if (!st.trimLinked) {
+        const inV = st.tin < 0.01 ? "" : st.tin.toFixed(2);
+        const outV = !st.tout || st.tout > st.duration - 0.01 ? "" : st.tout.toFixed(2);
+        if (!outV) st.tout = 0;
+        setIn(inV); setOut(outV);
+        setField("trimIn", inV); setField("trimOut", outV);
+      }
+      if (!st.loopLinked) {
+        const loopInV = st.lin < 0.01 ? "" : st.lin.toFixed(2);
+        const loopOutV = !st.lout || st.lout > st.duration - 0.01 ? "" : st.lout.toFixed(2);
+        if (!loopOutV) st.lout = 0;
+        setLoopIn(loopInV); setLoopOut(loopOutV);
+        setField("loopIn", loopInV); setField("loopOut", loopOutV);
       }
     }
 
