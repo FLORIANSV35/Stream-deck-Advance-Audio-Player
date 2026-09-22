@@ -3,6 +3,8 @@
 Play several audio files at once from a single key, send each one to the audio interface and outputs you choose,
 and control it live. Works on **macOS** and **Windows**.
 
+![A Stream Deck page with SAAP Audio keys: a Play Sound key idle and playing with a looping progress ring, a paused key, live volume, Set Loop Point in/out, Exit Loop, Stop all, and Skip forward](.github/readme/keys-overview.png)
+
 ## Install
 
 1. Download **`com.saap.audio.streamDeckPlugin`** from the [latest release](../../releases/latest).
@@ -31,6 +33,8 @@ anything itself.
   its settings, then press the key — every track with a file starts together, in sync to the millisecond. Each
   track has its own output, volume, fades, and trim/loop points, set from that same panel or drawn directly on
   its waveform.
+
+  ![The Play Sound settings panel: a file loaded, its waveform with trim and loop markers, output routing, volume, fades, and loop points](.github/readme/play-settings.png)
 - **Groups** are how a control reaches the right sounds. Give a Play Sound key a group name in its settings; a
   control key (Volume, Skip forward/back, Set Loop Point, Exit Loop, Stop all) set to that same group only
   affects sounds started from keys in that group, while one left on "all sounds" reaches everything currently
