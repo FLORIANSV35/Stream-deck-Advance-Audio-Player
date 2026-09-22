@@ -56,6 +56,7 @@
       st.ownIn = num(i); st.ownOut = num(o); st.loopOn = !!lon; st.ownLoopIn = num(li); st.ownLoopOut = num(lo);
       setFile(f);
     });
+    watch(key("file", n), setFile);
     watch(key("trimIn", n), onIn);
     watch(key("trimOut", n), onOut);
     watch(key("loop", n), onLoopOn);
