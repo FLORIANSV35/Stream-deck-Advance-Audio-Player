@@ -1,6 +1,8 @@
 .DS_Store
 node_modules/
 logs/
+# files dropped onto the large editor (see editor-server.ts's #upload)
+plugin/com.saap.audio.sdPlugin/uploads/
 engine/.build/
 # generated binaries (see README: ./engine/build.sh and npm run build)
 plugin/com.saap.audio.sdPlugin/bin/plugin.js

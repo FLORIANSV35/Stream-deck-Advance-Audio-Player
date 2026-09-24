@@ -1,9 +1,13 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
-import { join } from "node:path";
+import { basename, extname, join } from "node:path";
 import { WebSocketServer, type WebSocket } from "ws";
+
+const AUDIO_EXT = new Set([".wav", ".mp3", ".aif", ".aiff", ".m4a", ".aac", ".flac", ".caf", ".mp4"]);
+const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
 
 /** What the editor needs to know about a key, and how it reaches the plugin's own logic. */
 export interface EditorHost {
@@ -38,9 +42,14 @@ export class EditorServer {
   #starting?: Promise<void>;
   #sockets = new Map<WebSocket, { ctx: string; uuid: string }>();
 
+  /** Where a file dropped onto the editor is saved (a browser never reveals a dropped file's real path — the
+   * same reason "Browse…" opens a native dialog instead of a plain <input type=file>). A sibling of `uiDir`. */
+  readonly #uploadsDir: string;
+
   constructor(host: EditorHost, uiDir: string) {
     this.#host = host;
     this.#uiDir = uiDir;
+    this.#uploadsDir = join(uiDir, "..", "uploads");
   }
 
   /** URL of the editor page for a key, starting the server on first use. */
@@ -104,12 +113,17 @@ export class EditorServer {
   }
 
   async #http(req: IncomingMessage, res: ServerResponse): Promise<void> {
-    const fail = (code: number) => { res.writeHead(code, { "content-type": "text/plain" }); res.end(); };
-    if (req.method !== "GET" || !this.#allowedHost(req)) return fail(403);
+    const fail = (code: number, message?: string) => {
+      res.writeHead(code, { "content-type": "application/json; charset=utf-8" });
+      res.end(message ? JSON.stringify({ error: message }) : undefined);
+    };
+    if (!this.#allowedHost(req) || (req.method !== "GET" && req.method !== "POST")) return fail(403);
     const url = new URL(req.url ?? "/", `http://127.0.0.1:${this.#port}`);
     const [, token, name, ...rest] = url.pathname.split("/");
     if (!token || !this.#tokenOk(token) || !name || rest.length > 0) return fail(404);
     try {
+      if (req.method === "POST" && name === "upload") return await this.#upload(req, res, url);
+      if (req.method !== "GET") return fail(405);
       if (name === "popup") {
         const ctx = url.searchParams.get("ctx") ?? "";
         const session = this.#host.session(ctx);
@@ -127,6 +141,33 @@ export class EditorServer {
     } catch {
       fail(404);
     }
+  }
+
+  /** A file dropped onto the editor (see popup.js): saved under uploadsDir, sent back as an absolute path the
+   * same way "Browse…" would. Not a reference to wherever the original file lives — the browser never tells us
+   * that — so this is a real copy, kept for as long as the plugin is installed. */
+  async #upload(req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
+    const fail = (code: number, message: string) => {
+      res.writeHead(code, { "content-type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error: message }));
+    };
+    const rawName = basename(url.searchParams.get("name") ?? "");
+    const ext = extname(rawName).toLowerCase();
+    if (!rawName || !AUDIO_EXT.has(ext)) return fail(415, "Not a recognized audio file type");
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of req as AsyncIterable<Buffer>) {
+      size += chunk.length;
+      if (size > MAX_UPLOAD_BYTES) return fail(413, "File too large");
+      chunks.push(chunk);
+    }
+    await mkdir(this.#uploadsDir, { recursive: true });
+    const stem = basename(rawName, ext).replace(/[\\/]/g, "_") || "audio";
+    let dest = join(this.#uploadsDir, `${stem}${ext}`);
+    for (let n = 2; existsSync(dest); n++) dest = join(this.#uploadsDir, `${stem} (${n})${ext}`);
+    await writeFile(dest, Buffer.concat(chunks));
+    res.writeHead(200, { "content-type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ path: dest }));
   }
 
   /** `play.html` adapted to a browser tab: larger layout, only track 1 open, a real path field in place of the file picker. */

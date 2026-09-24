@@ -13,5 +13,5 @@ rm -f "$OUT"
 # ship the license and third-party notices inside the package
 cp LICENSE THIRD-PARTY-NOTICES.md plugin/com.saap.audio.sdPlugin/
 # a .streamDeckPlugin is a zip containing the .sdPlugin folder (without logs or system files)
-(cd plugin && zip -r -X -q "../$OUT" com.saap.audio.sdPlugin -x "*/logs/*" "*.DS_Store")
+(cd plugin && zip -r -X -q "../$OUT" com.saap.audio.sdPlugin -x "*/logs/*" "*/uploads/*" "*.DS_Store")
 echo "OK -> $OUT (version $VERSION, $(du -h "$OUT" | cut -f1))"

@@ -51,9 +51,49 @@
     }));
   };
   sd.send("sendToPlugin", { event: "getKeys" });
+
+  // dropping an audio file from Finder/Explorer onto a track uploads it and fills in that track's file field.
+  // A browser never reveals a dropped file's real path (same reason "Browse…" needs a native dialog instead of
+  // a plain file input), so the plugin saves a copy and hands back a path to that copy.
+  const dropStatus = document.createElement("div");
+  dropStatus.className = "dropstatus";
+  dropStatus.hidden = true;
+  document.querySelector(".hero").after(dropStatus);
+  const isFileDrag = (e) => e.dataTransfer && [...e.dataTransfer.types].includes("Files");
+
+  async function uploadDroppedFile(file, setting) {
+    dropStatus.hidden = false;
+    dropStatus.textContent = `Adding ${file.name}…`;
+    dropStatus.className = "dropstatus busy";
+    try {
+      const res = await fetch(`upload?name=${encodeURIComponent(file.name)}`, { method: "POST", body: file });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+      const field = document.querySelector(`sdpi-textfield[setting="${CSS.escape(setting)}"]`);
+      if (field) field.value = body.path;
+      dropStatus.hidden = true;
+    } catch (e) {
+      dropStatus.textContent = `Could not add ${file.name}: ${e.message}`;
+      dropStatus.className = "dropstatus err";
+      setTimeout(() => { dropStatus.hidden = true; }, 5000);
+    }
+  }
+
   document.querySelectorAll("button.browse").forEach((btn) => {
-    btn.addEventListener("click", () => sd.send("sendToPlugin", { event: "pickFile", setting: btn.dataset.setting }));
+    const setting = btn.dataset.setting;
+    btn.addEventListener("click", () => sd.send("sendToPlugin", { event: "pickFile", setting }));
+    const zone = btn.closest(".card") ?? btn.parentElement;
+    zone.addEventListener("dragover", (e) => { if (isFileDrag(e)) { e.preventDefault(); zone.classList.add("dropping"); } });
+    zone.addEventListener("dragleave", () => zone.classList.remove("dropping"));
+    zone.addEventListener("drop", (e) => {
+      zone.classList.remove("dropping");
+      if (!isFileDrag(e)) return;
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) void uploadDroppedFile(file, setting);
+    });
   });
+
   sd.sendToPropertyInspector.subscribe((ev) => {
     const p = ev.payload;
     if (p && p.event === "keys") return renderTabs(p.items);
