@@ -1,0 +1,20 @@
+/* Large editor (browser tab): same look as the settings panel, laid out for a wide window. */
+body.popup { padding: 0 32px 48px; max-width: 1800px; margin: 0 auto; }
+body.popup .hero { margin: 0 -32px; padding-left: 32px; }
+body.popup h2.section { margin-left: 4px; margin-right: 4px; }
+body.popup sdpi-note { margin-left: 4px; margin-right: 4px; max-width: 900px; }
+.lost { position: sticky; top: 0; z-index: 10; padding: 10px 16px; background: #5c1f1f; color: #fecaca; font-size: 12px; text-align: center; }
+
+body.popup .tracks { display: grid; grid-template-columns: repeat(auto-fit, minmax(560px, 1fr)); gap: 16px; align-items: start; }
+body.popup .card { max-width: none; margin: 8px 0; }
+body.popup .card > summary { cursor: default; pointer-events: none; }
+body.popup .card > summary::after { display: none; }
+body.popup .sub { max-width: 320px; }
+body.popup .card .body { padding: 12px 10px 16px; }
+body.popup .wave canvas { height: 220px; }
+body.popup .wave-info { font-size: 12px; }
+body.popup .filerow { display: flex; gap: 8px; width: 100%; }
+body.popup .filerow sdpi-textfield { flex: 1; min-width: 0; }
+body.popup .browse { flex: none; padding: 0 14px; height: var(--input-height); border: 0; border-radius: 3px; background: #2b303b; color: #e8eaef; font: inherit; cursor: pointer; }
+body.popup .browse:hover { background: #343a47; }
+body.popup .outpick .panel { max-height: 420px; }

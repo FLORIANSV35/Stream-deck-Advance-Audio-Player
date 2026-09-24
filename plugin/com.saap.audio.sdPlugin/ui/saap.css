@@ -77,3 +77,10 @@ body { overflow-x: hidden; }
 .outpick .lbl { margin: 4px 6px 2px; font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #6b7383; }
 .outpick .grid { display: grid; grid-template-columns: repeat(2, 1fr); }
 .outpick .grid.mono { grid-template-columns: repeat(3, 1fr); }
+
+/* "Open large editor" bar of the settings panel */
+.widebar { display: flex; align-items: center; gap: 10px; margin: 10px 14px 0; }
+.widebar button { flex: none; padding: 6px 12px; border: 1px solid #1f4d43; border-radius: 8px; background: #16302b; color: #5eead4;
+  font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.widebar button:hover { background: #1b3b34; }
+.widebar span { font-size: 11px; color: #7d8494; }

@@ -56,11 +56,14 @@ def track_fields(n):
 
 def play():
     body = '  <sdpi-note>Each track has its own file and outputs. One press starts every track that has a file, exactly at the same time.</sdpi-note>\n'
+    body += '  <!--wide-btn--><div class="widebar"><button type="button" id="open-wide">Open large editor ↗</button><span>Bigger waveform, all six tracks side by side — opens in your browser.</span></div><!--/wide-btn-->\n'
     body += '  <h2 class="section">Tracks</h2>\n'
+    body += '  <div class="tracks">\n'
     for n in range(1, MAX_TRACKS + 1):
         body += card(n, f"Track {n}", track_fields(n), open=(n == 1),
                      cls="" if n == 1 else "slave", tag="MASTER" if n == 1 else "",
                      subattr=f' data-file="{n}"')
+    body += '  </div>\n'
     body += '  <h2 class="section">Linking</h2>\n'
     body += card("⛓", "Track linking", 
         item("Trim", '<sdpi-checkbox setting="linkCut" label="Tracks 2-6: same trim points as track 1"></sdpi-checkbox>') +
@@ -81,7 +84,7 @@ def play():
         item("New group", '<sdpi-textfield setting="newGroup" placeholder="Type a name, then press Enter" maxlength="20"></sdpi-textfield>') +
         item("", '<sdpi-checkbox setting="stopOthers" label="Stop other sounds of the same group on start"></sdpi-checkbox>'),
         open=True, cls="plain")
-    return page("Play sounds", "Up to 6 tracks, synchronized to the millisecond", body, ["waveform.js", "outputs.js", "links.js"])
+    return page("Play sounds", "Up to 6 tracks, synchronized to the millisecond", body, ["waveform.js", "outputs.js", "links.js", "wide.js"])
 
 def volume():
     body = '  <h2 class="section">Setting</h2>\n' + card("♪", "Live volume",

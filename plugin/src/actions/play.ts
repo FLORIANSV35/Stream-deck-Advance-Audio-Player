@@ -1,5 +1,7 @@
 import { existsSync, statSync } from "node:fs";
 import { basename, extname } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { WebSocket } from "ws";
 import streamDeck, {
   action,
   SingletonAction,
@@ -11,7 +13,9 @@ import streamDeck, {
   type WillDisappearEvent,
 } from "@elgato/streamdeck";
 import type { JsonValue } from "@elgato/utils";
+import { EditorServer } from "../editor-server.js";
 import { engine, type PeaksResult, type PlayCommand } from "../engine.js";
+import { pickAudioFile } from "../filepicker.js";
 import { isGroupsEvent, normGroup, sendGroups } from "../groups.js";
 import { mixer } from "../mixer.js";
 import { outputItems, trackOutputs } from "../outputs.js";
@@ -47,6 +51,24 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   #keys = new Map<string, KeyAction<PlaySettings>>();
   #settings = new Map<string, PlaySettings>();
   #lastView = new Map<string, string>();
+
+  /** Large settings page opened in the browser (see EditorServer). */
+  #editor = new EditorServer(
+    {
+      session: (ctx) => {
+        const key = this.#keys.get(ctx);
+        return key ? { action: "com.saap.audio.play", device: key.device.id, settings: this.#settings.get(ctx) ?? {}, coordinates: key.coordinates } : undefined;
+      },
+      setSettings: async (ctx, settings, origin) => {
+        const key = this.#keys.get(ctx);
+        if (!key) return;
+        await this.#settingsChanged(ctx, key, settings as PlaySettings, origin);
+        await key.setSettings(settings as PlaySettings);
+      },
+      message: (_ctx, payload, reply) => this.#handleMessage(payload, (p) => reply(p as object)),
+    },
+    fileURLToPath(new URL("../ui/", import.meta.url)),
+  );
 
   constructor() {
     super();
@@ -91,21 +113,32 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   }
 
   override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<PlaySettings>): Promise<void> {
-    const id = ev.action.id;
-    const newGroup = ev.payload.settings.newGroup?.trim();
+    await this.#settingsChanged(ev.action.id, ev.action, ev.payload.settings);
+  }
+
+  /** New settings for a key, from Stream Deck's own panel or from the large editor (`origin`, not echoed back to it). */
+  async #settingsChanged(id: string, key: { setSettings(s: PlaySettings): Promise<void> }, settings: PlaySettings, origin?: WebSocket): Promise<void> {
+    const newGroup = settings.newGroup?.trim();
     if (newGroup) {
       // name typed in "New group": it becomes the key's group and joins the menu
       mixer.addGroup(newGroup);
-      await ev.action.setSettings({ ...ev.payload.settings, group: newGroup, newGroup: "" });
+      const updated = { ...settings, group: newGroup, newGroup: "" };
+      this.#settings.set(id, updated);
+      await key.setSettings(updated);
+      this.#editor.push(id, updated);
       await sendGroups("getGroupsPlay");
       return;
     }
-    mixer.addGroup(normGroup(ev.payload.settings.group));
-    this.#settings.set(id, ev.payload.settings);
+    mixer.addGroup(normGroup(settings.group));
+    // Stream Deck may echo back settings the editor itself just set: pushing those again would overwrite what
+    // the user is typing there
+    const known = JSON.stringify(this.#settings.get(id));
+    this.#settings.set(id, settings);
+    if (origin || JSON.stringify(settings) !== known) this.#editor.push(id, settings, origin);
     for (const p of tracksOf(id)) {
       // live volume: the inspector slider acts during playback
       const n = parseInt(p.id.split("#")[1], 10);
-      p.settings = { ...p.settings, volume: trackSettings(ev.payload.settings, n).volume, group: normGroup(ev.payload.settings.group) };
+      p.settings = { ...p.settings, volume: trackSettings(settings, n).volume, group: normGroup(settings.group) };
       engine.volume(p.id, gainFor(p.settings));
     }
     this.#lastView.delete(id);
@@ -113,19 +146,33 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   }
 
   override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, PlaySettings>): Promise<void> {
-    const event = (ev.payload as { event?: string }).event;
+    const payload = ev.payload as { event?: string };
+    if (payload.event === "openEditor") {
+      await streamDeck.system.openUrl(await this.#editor.url(ev.action.id));
+      return;
+    }
+    await this.#handleMessage(payload, (p) => streamDeck.ui.sendToPropertyInspector(p as JsonValue));
+  }
+
+  /** Messages from an inspector page (Stream Deck's panel or the large editor); `reply` answers that same page. */
+  async #handleMessage(payload: object, reply: (p: object) => void | Promise<void>): Promise<void> {
+    const event = (payload as { event?: string }).event;
     if (isGroupsEvent(event)) {
-      await sendGroups(event);
+      await sendGroups(event, reply);
     } else if (event === "getPeaks") {
-      const { file, track } = ev.payload as { file?: string; track?: number };
+      const { file, track } = payload as { file?: string; track?: number };
       const path = resolvePath(file);
       const result = path ? await this.#peaks(path) : undefined;
-      await streamDeck.ui.sendToPropertyInspector({
+      await reply({
         event: "peaks", track: track ?? 0, file: file ?? "",
         ...(result ? { duration: result.duration, peaks: result.peaks } : { error: path ? "Unreadable file" : "File not found" }),
-      } as JsonValue);
+      });
     } else if (event === "getOutputs") {
-      await streamDeck.ui.sendToPropertyInspector({ event, items: outputItems(await engine.devices()) } as JsonValue);
+      await reply({ event, items: outputItems(await engine.devices()) });
+    } else if (event === "pickFile") {
+      const setting = (payload as { setting?: string }).setting;
+      const path = await pickAudioFile();
+      if (path && setting) await reply({ event: "pickedFile", setting, path });
     }
   }
 
@@ -143,6 +190,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     const updated: PlaySettings = { ...s, [`loop${which === "in" ? "In" : "Out"}${suffix}`]: positionSeconds.toFixed(2), [`loop${suffix}`]: true };
     this.#settings.set(ctx, updated);
     await key.setSettings(updated);
+    this.#editor.push(ctx, updated);
     this.#lastView.delete(ctx);
     this.#render(ctx);
   }

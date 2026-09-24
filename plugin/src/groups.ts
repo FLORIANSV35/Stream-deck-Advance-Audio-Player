@@ -14,7 +14,9 @@ const FIRST_ENTRY: Record<string, { label: string; value: string }> = {
 
 export const isGroupsEvent = (event: unknown): event is string => typeof event === "string" && event in FIRST_ENTRY;
 
-export async function sendGroups(event: string): Promise<void> {
+/** Sends the group list to the inspector page that asked (Stream Deck's panel by default). */
+export async function sendGroups(event: string, reply?: (payload: object) => void | Promise<void>): Promise<void> {
   const items = [FIRST_ENTRY[event], ...mixer.groups().map((g) => ({ label: g, value: g }))];
-  await streamDeck.ui.sendToPropertyInspector({ event, items } as JsonValue);
+  if (reply) await reply({ event, items });
+  else await streamDeck.ui.sendToPropertyInspector({ event, items } as JsonValue);
 }

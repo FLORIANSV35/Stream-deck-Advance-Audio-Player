@@ -34,6 +34,12 @@ anything itself.
   track has its own output, volume, fades, and trim/loop points, set from that same panel or drawn directly on
   its waveform.
 
+  The panel in the Stream Deck app is narrow: press **Open large editor** at its top to get the same settings in
+  your browser, laid out wide — a much bigger waveform to place trim and loop points on, and all six tracks side
+  by side. Both stay in sync (a change in one shows up in the other), and the editor has a **Browse…** button that
+  opens the system's file dialog. It is served by the plugin on `127.0.0.1` only, behind a random per-launch token,
+  and stops working when Stream Deck quits.
+
   ![The Play Sound settings panel: a file loaded, its waveform with trim and loop markers, output routing, volume, fades, and loop points](.github/readme/play-settings.png)
 - **Groups** are how a control reaches the right sounds. Give a Play Sound key a group name in its settings; a
   control key (Volume, Skip forward/back, Set Loop Point, Exit Loop, Stop all) set to that same group only

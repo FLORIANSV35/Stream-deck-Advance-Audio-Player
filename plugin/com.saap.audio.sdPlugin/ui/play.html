@@ -10,7 +10,9 @@
   <header class="hero"><svg viewBox="0 0 36 36"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#22c55e"/></linearGradient></defs>
 <rect width="36" height="36" rx="9" fill="#1d2027"/><g fill="url(#lg)"><rect x="7" y="15" width="3" height="6" rx="1.5"/><rect x="12" y="10" width="3" height="16" rx="1.5"/><rect x="17" y="6" width="3" height="24" rx="1.5"/><rect x="22" y="12" width="3" height="12" rx="1.5"/><rect x="27" y="16" width="3" height="4" rx="1.5"/></g></svg><div><h1>Play sounds</h1><p>Up to 6 tracks, synchronized to the millisecond</p></div></header>
   <sdpi-note>Each track has its own file and outputs. One press starts every track that has a file, exactly at the same time.</sdpi-note>
+  <!--wide-btn--><div class="widebar"><button type="button" id="open-wide">Open large editor ↗</button><span>Bigger waveform, all six tracks side by side — opens in your browser.</span></div><!--/wide-btn-->
   <h2 class="section">Tracks</h2>
+  <div class="tracks">
   <details class="card " open>
     <summary><span class="badge">1</span><span class="meta"><span class="title">Track 1</span><span class="sub" data-file="1"></span></span><span class="tag">MASTER</span></summary>
     <div class="body">
@@ -113,6 +115,7 @@
     <sdpi-item label="Loop crossfade (s)" data-loopfield="6" data-link="fades"><sdpi-range setting="loopFade6" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range></sdpi-item>
     </div>
   </details>
+  </div>
   <h2 class="section">Linking</h2>
   <details class="card plain">
     <summary><span class="badge">⛓</span><span class="meta"><span class="title">Track linking</span><span class="sub">Track 1 is the master</span></span></summary>
@@ -143,5 +146,6 @@
   <script src="waveform.js"></script>
   <script src="outputs.js"></script>
   <script src="links.js"></script>
+  <script src="wide.js"></script>
 </body>
 </html>
