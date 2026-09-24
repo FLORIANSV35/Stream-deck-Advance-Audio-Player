@@ -52,6 +52,20 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   #settings = new Map<string, PlaySettings>();
   #lastView = new Map<string, string>();
 
+  /** The Play keys currently showing on a deck, in reading order: the editor's tabs. */
+  #tabs(): object {
+    const rows = [...this.#keys].map(([ctx, key]) => {
+      const s = this.#settings.get(ctx) ?? {};
+      const first = s.file as string | undefined;
+      return {
+        ctx, label: s.label || (first ? basename(first, extname(first)) : "Choose a file"), group: normGroup(s.group),
+        device: key.device.id, row: key.coordinates?.row ?? 0, column: key.coordinates?.column ?? 0,
+      };
+    });
+    rows.sort((a, b) => a.device.localeCompare(b.device) || a.row - b.row || a.column - b.column);
+    return { event: "keys", items: rows.map(({ ctx, label, group }) => ({ ctx, label, group })) };
+  }
+
   /** Large settings page opened in the browser (see EditorServer). */
   #editor = new EditorServer(
     {
@@ -105,11 +119,13 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     mixer.addGroup(normGroup(ev.payload.settings.group));
     this.#lastView.delete(ev.action.id);
     this.#render(ev.action.id);
+    this.#editor.broadcast(this.#tabs());
   }
 
   override onWillDisappear(ev: WillDisappearEvent<PlaySettings>): void {
     // playback continues if the user changes page: only the display is removed
     this.#keys.delete(ev.action.id);
+    this.#editor.broadcast(this.#tabs());
   }
 
   override async onDidReceiveSettings(ev: DidReceiveSettingsEvent<PlaySettings>): Promise<void> {
@@ -126,6 +142,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       this.#settings.set(id, updated);
       await key.setSettings(updated);
       this.#editor.push(id, updated);
+      this.#editor.broadcast(this.#tabs());
       await sendGroups("getGroupsPlay");
       return;
     }
@@ -134,7 +151,10 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     // the user is typing there
     const known = JSON.stringify(this.#settings.get(id));
     this.#settings.set(id, settings);
-    if (origin || JSON.stringify(settings) !== known) this.#editor.push(id, settings, origin);
+    if (origin || JSON.stringify(settings) !== known) {
+      this.#editor.push(id, settings, origin);
+      this.#editor.broadcast(this.#tabs());
+    }
     for (const p of tracksOf(id)) {
       // live volume: the inspector slider acts during playback
       const n = parseInt(p.id.split("#")[1], 10);
@@ -169,6 +189,8 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       });
     } else if (event === "getOutputs") {
       await reply({ event, items: outputItems(await engine.devices()) });
+    } else if (event === "getKeys") {
+      await reply(this.#tabs());
     } else if (event === "pickFile") {
       const setting = (payload as { setting?: string }).setting;
       const path = await pickAudioFile();

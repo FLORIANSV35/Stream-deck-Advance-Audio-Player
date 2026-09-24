@@ -34,11 +34,29 @@
   window.connectElgatoStreamDeckSocket(cfg.port, cfg.uuid, "registerPropertyInspector", JSON.stringify(cfg.info), JSON.stringify(cfg.actionInfo));
 
   const { streamDeckClient: sd } = SDPIComponents;
+
+  // tabs: one per Play key currently showing on a deck; a tab opens that key in this same page
+  const current = cfg.uuid.split(":").slice(1).join(":");
+  const tabs = document.createElement("nav");
+  tabs.className = "tabs";
+  document.querySelector(".hero").after(tabs);
+  const renderTabs = (items) => {
+    tabs.replaceChildren(...items.map((k) => {
+      const a = document.createElement("a");
+      a.className = "tab" + (k.ctx === current ? " on" : "");
+      a.href = `?ctx=${encodeURIComponent(k.ctx)}`;
+      a.textContent = k.label;
+      if (k.group) { const g = document.createElement("small"); g.textContent = k.group; a.append(g); }
+      return a;
+    }));
+  };
+  sd.send("sendToPlugin", { event: "getKeys" });
   document.querySelectorAll("button.browse").forEach((btn) => {
     btn.addEventListener("click", () => sd.send("sendToPlugin", { event: "pickFile", setting: btn.dataset.setting }));
   });
   sd.sendToPropertyInspector.subscribe((ev) => {
     const p = ev.payload;
+    if (p && p.event === "keys") return renderTabs(p.items);
     if (!p || p.event !== "pickedFile") return;
     const field = document.querySelector(`sdpi-textfield[setting="${CSS.escape(p.setting)}"]`);
     if (field) field.value = p.path;

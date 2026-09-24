@@ -56,6 +56,14 @@ export class EditorServer {
     }
   }
 
+  /** Sends a message to every editor page open, whatever key it is on (like `sendToPropertyInspector`). */
+  broadcast(payload: object): void {
+    for (const [ws, s] of this.#sockets) {
+      const session = this.#host.session(s.ctx);
+      if (session) this.#send(ws, { event: "sendToPropertyInspector", action: session.action, context: s.uuid, payload });
+    }
+  }
+
   close(): void {
     this.#wss?.close();
     this.#server?.close();

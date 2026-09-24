@@ -5,16 +5,26 @@ body.popup h2.section { margin-left: 4px; margin-right: 4px; }
 body.popup sdpi-note { margin-left: 4px; margin-right: 4px; max-width: 900px; }
 .lost { position: sticky; top: 0; z-index: 10; padding: 10px 16px; background: #5c1f1f; color: #fecaca; font-size: 12px; text-align: center; }
 
-body.popup .tracks { display: grid; grid-template-columns: repeat(auto-fit, minmax(560px, 1fr)); gap: 16px; align-items: start; }
+body.popup .tracks { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 body.popup .card { max-width: none; margin: 8px 0; }
 body.popup .card > summary { cursor: default; pointer-events: none; }
 body.popup .card > summary::after { display: none; }
 body.popup .sub { max-width: 320px; }
 body.popup .card .body { padding: 12px 10px 16px; }
-body.popup .wave canvas { height: 220px; }
+body.popup .wave canvas { height: 260px; }
 body.popup .wave-info { font-size: 12px; }
 body.popup .filerow { display: flex; gap: 8px; width: 100%; }
 body.popup .filerow sdpi-textfield { flex: 1; min-width: 0; }
 body.popup .browse { flex: none; padding: 0 14px; height: var(--input-height); border: 0; border-radius: 3px; background: #2b303b; color: #e8eaef; font: inherit; cursor: pointer; }
 body.popup .browse:hover { background: #343a47; }
 body.popup .outpick .panel { max-height: 420px; }
+
+/* one tab per Play key, always in view */
+.tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 6px; flex-wrap: wrap; margin: 0 -32px; padding: 10px 32px;
+  background: rgba(20,22,26,.94); backdrop-filter: blur(8px); border-bottom: 1px solid #22262e; }
+.tab { display: flex; align-items: baseline; gap: 8px; padding: 7px 14px; border: 1px solid #262a32; border-radius: 9px; background: #1b1e24;
+  color: #a3a9b7; font-size: 12.5px; font-weight: 600; text-decoration: none; }
+.tab small { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #6b7383; }
+.tab:hover { background: #21252d; color: #eceef2; }
+.tab.on { border-color: #1f4d43; background: #16302b; color: #5eead4; }
+.tab.on small { color: #3f9c8b; }
