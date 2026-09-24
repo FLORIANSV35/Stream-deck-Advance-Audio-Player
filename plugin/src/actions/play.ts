@@ -16,7 +16,7 @@ import type { JsonValue } from "@elgato/utils";
 import { EditorServer } from "../editor-server.js";
 import { engine, type PeaksResult, type PlayCommand } from "../engine.js";
 import { pickAudioFile } from "../filepicker.js";
-import { isGroupsEvent, normGroup, sendGroups } from "../groups.js";
+import { isGroupsEvent, normGroup, replyToInspector, sendGroups } from "../groups.js";
 import { mixer } from "../mixer.js";
 import { outputItems, trackOutputs } from "../outputs.js";
 import { playbacks, gainFor, inGroup, ctxOf, type Playback } from "../registry.js";
@@ -171,7 +171,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       await streamDeck.system.openUrl(await this.#editor.url(ev.action.id));
       return;
     }
-    await this.#handleMessage(payload, (p) => streamDeck.ui.sendToPropertyInspector(p as JsonValue));
+    await this.#handleMessage(payload, replyToInspector);
   }
 
   /** Messages from an inspector page (Stream Deck's panel or the large editor); `reply` answers that same page. */

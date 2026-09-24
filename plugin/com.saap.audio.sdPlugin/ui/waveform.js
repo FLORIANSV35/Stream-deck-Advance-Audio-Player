@@ -101,9 +101,17 @@
       if (f === st.file && (st.peaks || !f)) return;
       st.file = f; st.peaks = null; st.duration = 0;
       st.msg = f ? "Analyzing file…" : "Choose a file";
-      if (f) sd.send("sendToPlugin", { event: "getPeaks", file: f, track: n });
+      clearInterval(peaksRetry);
+      if (f) {
+        const ask = () => sd.send("sendToPlugin", { event: "getPeaks", file: f, track: n });
+        ask();
+        // if the plugin was not ready to answer (first open of the panel), ask again until the waveform arrives
+        let attempts = 0;
+        peaksRetry = setInterval(() => { if (st.peaks || st.file !== f || ++attempts > 5) clearInterval(peaksRetry); else ask(); }, 4000);
+      }
       draw();
     }
+    let peaksRetry;
 
     const outTime = () => (st.tout > 0 && st.tout < st.duration ? st.tout : st.duration);
     // loop-out follows the same "0 = end" convention as trim-out, but clamped to the trim range

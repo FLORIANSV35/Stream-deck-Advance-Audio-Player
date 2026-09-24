@@ -12,6 +12,9 @@
     if (ev.payload && ev.payload.event === "getOutputs") { items = ev.payload.items; onItems.forEach((f) => f()); }
   });
   request();
+  // if the plugin was not ready to answer (first open of the panel), ask again until the list arrives
+  let attempts = 0;
+  const retry = setInterval(() => { if (items || ++attempts > 10) clearInterval(retry); else request(); }, 2000);
 
   document.querySelectorAll(".outpick").forEach(init);
 
