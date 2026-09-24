@@ -3,7 +3,7 @@
   "SDKVersion": 2,
   "UUID": "com.saap.audio",
   "Name": "SAAP Audio",
-  "Version": "0.2.0.0",
+  "Version": "0.2.1.0",
   "Author": "SAAP",
   "Description": "Advanced audio player: several synchronized tracks per key, fades, trim points on a waveform, live volume, and a choice of audio interface and outputs per file.",
   "Category": "SAAP Audio",
