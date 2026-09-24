@@ -162,20 +162,35 @@ export function loopPointKey(o: { label: string; group?: string; which: "in" | "
   `));
 }
 
-export function remoteKey(o: { label: string; kind: string; status?: "ok" | "error" }): string {
-  // two nodes linked by a dashed line: "this key" reaching another computer over the network
-  const dash = o.status === "error" ? `stroke="${C.red[1]}"` : `stroke="url(#b)"`;
-  const nodes = `
-    <circle cx="50" cy="78" r="11" fill="none" stroke="url(#b)" stroke-width="6"/>
-    <circle cx="94" cy="78" r="11" fill="none" stroke="url(#b)" stroke-width="6"/>
-    <line x1="63" y1="78" x2="81" y2="78" ${dash} stroke-width="5" stroke-linecap="round" stroke-dasharray="4 4"/>`;
+export function remoteKey(o: { label: string; kind: string; which?: "in" | "out"; status?: "ok" | "error" }): string {
+  // the same glyph the real action would show, at a glance, plus a small link badge so it still reads as remote
+  const GLYPHS: Record<string, string> = {
+    play: `<path d="M62 62 L62 94 L90 78 Z" fill="url(#g)" stroke="url(#g)" stroke-width="5" stroke-linejoin="round"/>`,
+    volume: `<rect x="52" y="68" width="40" height="7" rx="3.5" fill="url(#g)"/><rect x="52" y="82" width="40" height="7" rx="3.5" fill="url(#g)"/>`,
+    skip: `<path d="M52 58 L68 76 L52 94" fill="none" stroke="url(#b)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+           <path d="M78 58 L94 76 L78 94" fill="none" stroke="url(#b)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`,
+    stopAll: `<rect x="57" y="65" width="30" height="30" rx="7" fill="url(#r)"/>`,
+    exitLoop: `<path d="M86 61 A22 22 0 1 1 57 60" fill="none" stroke="url(#b)" stroke-width="7" stroke-linecap="round"/>
+               <path d="M57 60 L38 76" stroke="url(#b)" stroke-width="7" stroke-linecap="round"/>
+               <path d="M43 66 L38 76 L49 78" fill="none" stroke="url(#b)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`,
+    loopPoint: o.which === "out"
+      ? `<path d="M58 50 h18 v52 h-18" fill="none" stroke="url(#b)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>`
+      : `<path d="M86 50 h-18 v52 h18" fill="none" stroke="url(#b)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>`,
+  };
   const KIND_LABEL: Record<string, string> = {
     play: "PLAY", volume: "VOLUME", skip: "SKIP", stopAll: "STOP ALL", exitLoop: "EXIT LOOP", loopPoint: "LOOP POINT",
   };
+  const dash = o.status === "error" ? `stroke="${C.red[1]}"` : `stroke="url(#b)"`;
+  // small link badge under the main glyph: this key acts on another computer, not on sounds here
+  const badge = `
+    <circle cx="63" cy="112" r="3.2" fill="none" stroke="url(#b)" stroke-width="2.4"/>
+    <circle cx="81" cy="112" r="3.2" fill="none" stroke="url(#b)" stroke-width="2.4"/>
+    <line x1="67" y1="112" x2="77" y2="112" ${dash} stroke-width="2" stroke-linecap="round" stroke-dasharray="2 2.5"/>`;
   return uri(frame(`
     ${text(72, 24, 16, C.muted, clip(KIND_LABEL[o.kind] ?? "REMOTE", 14), { weight: 600, spacing: 1.2 })}
     <circle cx="72" cy="78" r="${RING_R}" fill="none" stroke="${C.faint}" stroke-width="7"/>
-    ${nodes}
+    ${GLYPHS[o.kind] ?? GLYPHS.play}
+    ${badge}
     ${text(72, 137, 13, C.text, clip(o.label, 16), { weight: 500 })}
   `));
 }

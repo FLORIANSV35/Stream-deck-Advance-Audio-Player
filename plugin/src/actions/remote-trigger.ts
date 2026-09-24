@@ -43,7 +43,7 @@ async function call(host: string, port: number, key: string, path: string, init?
 @action({ UUID: "com.saap.audio.remote" })
 export class RemoteTriggerAction extends SingletonAction<RemoteTriggerSettings> {
   #image(s: RemoteTriggerSettings): string {
-    return remoteKey({ label: s.label?.trim() || s.targetLabel || "Remote", kind: s.kind ?? "play" });
+    return remoteKey({ label: s.label?.trim() || s.targetLabel || "Remote", kind: s.kind ?? "play", which: s.which });
   }
 
   override onWillAppear(ev: WillAppearEvent<RemoteTriggerSettings>): void {

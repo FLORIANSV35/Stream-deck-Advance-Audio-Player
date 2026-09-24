@@ -8,10 +8,11 @@
   
     <text x="72" y="24" font-size="16" font-weight="600" fill="#7d8494" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" letter-spacing="1.2">PLAY</text>
     <circle cx="72" cy="78" r="39" fill="none" stroke="#2a2e37" stroke-width="7"/>
+    <path d="M62 62 L62 94 L90 78 Z" fill="url(#g)" stroke="url(#g)" stroke-width="5" stroke-linejoin="round"/>
     
-    <circle cx="50" cy="78" r="11" fill="none" stroke="url(#b)" stroke-width="6"/>
-    <circle cx="94" cy="78" r="11" fill="none" stroke="url(#b)" stroke-width="6"/>
-    <line x1="63" y1="78" x2="81" y2="78" stroke="url(#b)" stroke-width="5" stroke-linecap="round" stroke-dasharray="4 4"/>
+    <circle cx="63" cy="112" r="3.2" fill="none" stroke="url(#b)" stroke-width="2.4"/>
+    <circle cx="81" cy="112" r="3.2" fill="none" stroke="url(#b)" stroke-width="2.4"/>
+    <line x1="67" y1="112" x2="77" y2="112" stroke="url(#b)" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 2.5"/>
     <text x="72" y="137" font-size="13" font-weight="500" fill="#eceef2" text-anchor="middle" font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" letter-spacing="0">Remote</text>
   
 </svg>
