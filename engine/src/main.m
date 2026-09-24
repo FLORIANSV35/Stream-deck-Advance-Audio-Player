@@ -666,6 +666,12 @@ static void handle(NSString *line) {
         NSString *file = c[@"file"]; id req = c[@"req"]; int n = (int)num(c, @"n", 600);
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ emit(computePeaks(file, n, req)); });
     }
+    else if ([cmd isEqualToString:@"preload"] && [c[@"file"] isKindOfClass:[NSString class]]) {
+        // reads the whole file through once, purely to warm the OS file cache before Play actually needs it;
+        // computePeaks() already does exactly that read, its actual result just goes unused here
+        NSString *file = c[@"file"];
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ computePeaks(file, 10, @0); });
+    }
     else if ([cmd isEqualToString:@"syncInfo"]) {
         NSMutableArray *items = [NSMutableArray array];
         for (SAInstance *i in instances.allValues) [items addObject:[i syncInfo]];

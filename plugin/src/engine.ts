@@ -146,6 +146,9 @@ class Engine extends EventEmitter<EngineEvents> {
    * lost; warming a device well ahead of an actual Play press (see PlayAction) avoids that cutting into real audio.
    */
   warm(device: string): void { this.#send({ cmd: "warm", device }); }
+  /** Reads a file through once in the background, purely so the OS file cache is warm by the time Play actually
+   * needs it — a cold read otherwise cuts into the very start of playback, same idea as warm() for a device. */
+  preload(file: string): void { this.#send({ cmd: "preload", file }); }
   play(cmd: PlayCommand): void { this.#send({ cmd: "play", ...cmd }); }
   /** Starts several tracks at one exact instant (synchronized within a millisecond). */
   playBatch(items: PlayCommand[]): void { this.#send({ cmd: "playBatch", items }); }

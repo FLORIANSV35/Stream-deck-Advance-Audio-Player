@@ -127,19 +127,24 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     this.#lastView.delete(ev.action.id);
     this.#render(ev.action.id);
     this.#editor.broadcast(this.#tabs());
-    this.#warmOutputs(ev.payload.settings);
+    this.#prewarm(ev.payload.settings);
   }
 
   /**
-   * Pre-starts every output device this key's tracks are configured to use, so the very first Play press does
-   * not pay a device's own startup latency (see Engine.warm). Run as soon as the key's settings are known — well
-   * before a press is likely — and again whenever they change, in case an output was just picked.
+   * Prepares everything a Play press will need, so the first press does not pay for it: pre-starts every output
+   * device the key's tracks use (a device's own startup latency, see Engine.warm) and has the OS file cache
+   * warm for every track's file (a cold-disk read otherwise cutting into the very start of playback, see
+   * Engine.preload). Run as soon as the key's settings are known — well before a press is likely — and again
+   * whenever they change, in case a file or output was just picked.
    */
-  #warmOutputs(s: PlaySettings): void {
+  #prewarm(s: PlaySettings): void {
     const devices = new Set<string>();
     for (let n = 1; n <= MAX_TRACKS; n++) {
       const t = trackSettings(s, n);
-      if (t.file) for (const out of trackOutputs(t)) devices.add(out.device);
+      if (!t.file) continue;
+      for (const out of trackOutputs(t)) devices.add(out.device);
+      const path = resolvePath(t.file as string);
+      if (path) engine.preload(path);
     }
     for (const device of devices) engine.warm(device);
   }
@@ -173,7 +178,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     // the user is typing there
     const known = JSON.stringify(this.#settings.get(id));
     this.#settings.set(id, settings);
-    if (JSON.stringify(settings) !== known) this.#warmOutputs(settings);
+    if (JSON.stringify(settings) !== known) this.#prewarm(settings);
     if (origin || JSON.stringify(settings) !== known) {
       this.#editor.push(id, settings, origin);
       this.#editor.broadcast(this.#tabs());

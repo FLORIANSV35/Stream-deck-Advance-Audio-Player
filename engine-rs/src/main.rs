@@ -220,6 +220,13 @@ impl Engine {
                     });
                 }
             }
+            "preload" => {
+                // reads the whole file through once, purely to warm the OS file cache before Play actually
+                // needs it; the decoded result itself goes unused here, same idea as the macOS engine's preload
+                if let Some(file) = c.get("file").and_then(Value::as_str).map(str::to_string) {
+                    std::thread::spawn(move || { let _ = audio::load(&file); });
+                }
+            }
             "syncInfo" => {
                 let items: Vec<Value> = self
                     .voices
