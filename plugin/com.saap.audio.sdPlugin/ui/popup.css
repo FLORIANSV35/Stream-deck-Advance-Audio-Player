@@ -7,8 +7,6 @@ body.popup sdpi-note { margin-left: 4px; margin-right: 4px; max-width: 900px; }
 
 body.popup .tracks { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 body.popup .card { max-width: none; margin: 8px 0; }
-body.popup .card > summary { cursor: default; pointer-events: none; }
-body.popup .card > summary::after { display: none; }
 body.popup .sub { max-width: 320px; }
 body.popup .card .body { padding: 12px 10px 16px; }
 body.popup .wave canvas { height: 260px; }
