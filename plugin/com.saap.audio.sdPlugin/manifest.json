@@ -141,6 +141,22 @@
           "ShowTitle": false
         }
       ]
+    },
+    {
+      "UUID": "com.saap.audio.remote",
+      "Name": "Remote Trigger",
+      "Tooltip": "Triggers a Play key, or a group control, on another computer's SAAP Audio over the network.",
+      "Icon": "imgs/actions/remote",
+      "Controllers": [
+        "Keypad"
+      ],
+      "PropertyInspectorPath": "ui/remotetrigger.html",
+      "States": [
+        {
+          "Image": "imgs/actions/remote-key",
+          "ShowTitle": false
+        }
+      ]
     }
   ]
 }

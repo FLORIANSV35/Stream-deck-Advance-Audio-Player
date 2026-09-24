@@ -80,6 +80,12 @@ anything itself.
   through to its trim-out point. Has no effect on a track that isn't looping.
 - **Stop all** (key): all sounds or one group, with a fade or an immediate cut. Give each button its own name to
   have several stop buttons.
+- **Remote Trigger** (key): triggers a Play key, or a group control (Volume, Skip, Stop all, Exit loop, Set loop
+  point), on **another computer's** SAAP Audio over the local network — for a second Stream Deck on a different
+  machine. That other computer needs *Network control* turned on (Play key settings, bottom section) with a
+  passphrase; enter its address, port and that same passphrase in the Remote Trigger key, then **Test connection**
+  to pick a target key from a list instead of typing an id. Off by default, and nothing listens on the network
+  until *Network control* is turned on and a passphrase is set.
 - **Update check**: the plugin looks on GitHub for a newer release (one anonymous request at startup, then daily;
   pre-releases are ignored) and shows a bar at the top of the settings panel and of the large editor, with
   **Install** (downloads the package and opens it — Stream Deck asks you to confirm) and **What's new**. It can be

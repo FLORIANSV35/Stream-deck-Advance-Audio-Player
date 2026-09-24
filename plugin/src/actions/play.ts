@@ -15,6 +15,7 @@ import streamDeck, {
 import type { JsonValue } from "@elgato/utils";
 import { updater } from "../updater.js";
 import { EditorServer } from "../editor-server.js";
+import { networkControl } from "../network-server.js";
 import { engine, type PeaksResult, type PlayCommand } from "../engine.js";
 import { pickAudioFile } from "../filepicker.js";
 import { isGroupsEvent, normGroup, replyToInspector, sendGroups } from "../groups.js";
@@ -53,8 +54,9 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   #settings = new Map<string, PlaySettings>();
   #lastView = new Map<string, string>();
 
-  /** The Play keys currently showing on a deck, in reading order: the editor's tabs. */
-  #tabs(): object {
+  /** The Play keys currently showing on a deck, in reading order — used for the editor's tabs and for a
+   * Remote Trigger key on another computer to list what it can start (see network-server.ts). */
+  listKeys(): { ctx: string; label: string; group: string }[] {
     const rows = [...this.#keys].map(([ctx, key]) => {
       const s = this.#settings.get(ctx) ?? {};
       const first = s.file as string | undefined;
@@ -64,7 +66,11 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       };
     });
     rows.sort((a, b) => a.device.localeCompare(b.device) || a.row - b.row || a.column - b.column);
-    return { event: "keys", items: rows.map(({ ctx, label, group }) => ({ ctx, label, group })) };
+    return rows.map(({ ctx, label, group }) => ({ ctx, label, group }));
+  }
+
+  #tabs(): object {
+    return { event: "keys", items: this.listKeys() };
   }
 
   /** Large settings page opened in the browser (see EditorServer). */
@@ -217,6 +223,17 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       await reply(error ? { event: "updateStatus", state: "error", message: error } : { event: "updateStatus", state: "opened" });
     } else if (event === "openUpdatePage") {
       await updater.openPage();
+    } else if (event === "getNetwork") {
+      await reply({ event: "network", ...networkControl.state() });
+    } else if (event === "setNetworkEnabled") {
+      networkControl.setEnabled(!!(payload as { value?: unknown }).value);
+      await reply({ event: "network", ...networkControl.state() });
+    } else if (event === "setNetworkKey") {
+      networkControl.setKey(String((payload as { value?: unknown }).value ?? ""));
+      await reply({ event: "network", ...networkControl.state() });
+    } else if (event === "setNetworkPort") {
+      networkControl.setPort(Number((payload as { value?: unknown }).value) || 0);
+      await reply({ event: "network", ...networkControl.state() });
     } else if (event === "getKeys") {
       await reply(this.#tabs());
     } else if (event === "pickFile") {
@@ -258,9 +275,21 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   }
 
   override onKeyDown(ev: KeyDownEvent<PlaySettings>): void {
-    const id = ev.action.id;
-    const s = ev.payload.settings;
-    this.#settings.set(id, s);
+    this.#settings.set(ev.action.id, ev.payload.settings);
+    this.#press(ev.action.id, ev.action);
+  }
+
+  /** Same effect as physically pressing this key — used by a network Remote Trigger (see network-server.ts).
+   * Returns false if the key is not currently known (not showing on any deck). */
+  triggerRemote(ctx: string): boolean {
+    const key = this.#keys.get(ctx);
+    if (!key) return false;
+    this.#press(ctx, key);
+    return true;
+  }
+
+  #press(id: string, key: KeyAction<PlaySettings>): void {
+    const s = this.#settings.get(id) ?? {};
     const current = tracksOf(id);
 
     if (current.length > 0 && s.mode !== "restart") {
@@ -272,7 +301,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       }
       return;
     }
-    this.#start(id, s, ev.action);
+    this.#start(id, s, key);
   }
 
   #start(ctx: string, s: PlaySettings, key: { showAlert(): Promise<void> }): void {

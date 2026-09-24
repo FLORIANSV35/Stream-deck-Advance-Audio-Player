@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Remote Trigger</title>
+  <script src="sdpi-components.js"></script>
+  <link rel="stylesheet" href="saap.css" />
+</head>
+<body>
+  <header class="hero"><svg viewBox="0 0 36 36"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#22c55e"/></linearGradient></defs>
+<rect width="36" height="36" rx="9" fill="#1d2027"/><g fill="url(#lg)"><rect x="7" y="15" width="3" height="6" rx="1.5"/><rect x="12" y="10" width="3" height="16" rx="1.5"/><rect x="17" y="6" width="3" height="24" rx="1.5"/><rect x="22" y="12" width="3" height="12" rx="1.5"/><rect x="27" y="16" width="3" height="4" rx="1.5"/></g></svg><div><h1>Remote Trigger</h1><p>Trigger a sound (or a group control) on another computer</p></div></header>
+  <h2 class="section">Connection</h2>
+  <details class="card plain" open>
+    <summary><span class="badge">⌁</span><span class="meta"><span class="title">Other computer</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Display name"><sdpi-textfield setting="label" placeholder="Remote" maxlength="24"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Host / IP"><sdpi-textfield setting="host" placeholder="e.g. 192.168.1.23"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Port"><sdpi-textfield setting="port" placeholder="57991" pattern="^[0-9]*$"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Passphrase"><sdpi-textfield setting="key" placeholder="Same as on the other computer"></sdpi-textfield></sdpi-item>
+    <sdpi-item label=""><button type="button" id="test-connection" class="testbtn">Test connection</button> <span id="test-status" class="teststatus"></span></sdpi-item>
+    </div>
+  </details>
+  <h2 class="section">Action</h2>
+  <details class="card plain" open>
+    <summary><span class="badge">▶</span><span class="meta"><span class="title">What to trigger</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Kind"><sdpi-select setting="kind" default="play">
+        <option value="play">Play a key</option>
+        <option value="volume">Volume</option>
+        <option value="skip">Skip forward / back</option>
+        <option value="stopAll">Stop all</option>
+        <option value="exitLoop">Exit loop</option>
+        <option value="loopPoint">Set loop point</option>
+      </sdpi-select></sdpi-item>
+    </div>
+  </details>
+  <details class="card plain" data-kind="play">
+    <summary><span class="badge">▶</span><span class="meta"><span class="title">Play a key</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Target key"><select id="target-key" class="plain-input" data-kind="play"><option value="">Test the connection first…</option></select><sdpi-textfield style="display:none" setting="targetCtx"></sdpi-textfield><sdpi-textfield style="display:none" setting="targetLabel"></sdpi-textfield></sdpi-item>
+    </div>
+  </details>
+  <details class="card plain" data-kind="volume">
+    <summary><span class="badge">▶</span><span class="meta"><span class="title">Volume</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Target group"><sdpi-textfield setting="target" data-kind="volume" placeholder="* = master (all sounds)"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Mode"><sdpi-select setting="mode" data-kind="volume" default="up">
+        <option value="up">Volume +</option>
+        <option value="down">Volume −</option>
+        <option value="mute">Mute / unmute</option>
+        <option value="set">Set to a value</option>
+      </sdpi-select></sdpi-item>
+    <sdpi-item label="Step (%)"><sdpi-range setting="step" data-kind="volume" min="1" max="20" step="1" default="5" showlabels></sdpi-range></sdpi-item>
+    <sdpi-item label="Fixed value (%)"><sdpi-range setting="value" data-kind="volume" min="0" max="100" step="1" default="100" showlabels></sdpi-range></sdpi-item>
+    </div>
+  </details>
+  <details class="card plain" data-kind="skip">
+    <summary><span class="badge">▶</span><span class="meta"><span class="title">Skip forward / back</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Group"><sdpi-textfield setting="group" data-kind="skip" placeholder="Blank = all sounds"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Direction"><sdpi-select setting="direction" data-kind="skip" default="forward">
+        <option value="forward">Forward</option>
+        <option value="back">Back</option>
+      </sdpi-select></sdpi-item>
+    <sdpi-item label="Seconds"><sdpi-range setting="seconds" data-kind="skip" min="1" max="60" step="1" default="10" showlabels></sdpi-range></sdpi-item>
+    </div>
+  </details>
+  <details class="card plain" data-kind="stopAll">
+    <summary><span class="badge">▶</span><span class="meta"><span class="title">Stop all</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Group"><sdpi-textfield setting="group" data-kind="stopAll" placeholder="Blank = all sounds"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Stop"><sdpi-select setting="mode" data-kind="stopAll" default="fade">
+        <option value="fade">With fade</option>
+        <option value="cut">Cut immediately</option>
+      </sdpi-select></sdpi-item>
+    <sdpi-item label="Fade duration (s)"><sdpi-range setting="fade" data-kind="stopAll" min="0.1" max="10" step="0.1" default="1.5" showlabels></sdpi-range></sdpi-item>
+    </div>
+  </details>
+  <details class="card plain" data-kind="exitLoop">
+    <summary><span class="badge">▶</span><span class="meta"><span class="title">Exit loop</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Group"><sdpi-textfield setting="group" data-kind="exitLoop" placeholder="Blank = all sounds"></sdpi-textfield></sdpi-item>
+    </div>
+  </details>
+  <details class="card plain" data-kind="loopPoint">
+    <summary><span class="badge">▶</span><span class="meta"><span class="title">Set loop point</span></span></summary>
+    <div class="body">
+    <sdpi-item label="Group"><sdpi-textfield setting="group" data-kind="loopPoint" placeholder="Blank = all sounds"></sdpi-textfield></sdpi-item>
+    <sdpi-item label="Which point"><sdpi-select setting="which" data-kind="loopPoint" default="in">
+        <option value="in">Loop in</option>
+        <option value="out">Loop out</option>
+      </sdpi-select></sdpi-item>
+    </div>
+  </details>
+  <sdpi-note>The other computer must have <b>Network control</b> enabled (Play key settings, bottom section) with the same passphrase. A group name must match exactly what is used there.</sdpi-note>
+
+  <script src="remote.js"></script>
+</body>
+</html>

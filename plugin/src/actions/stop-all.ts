@@ -7,7 +7,7 @@ import {
   type WillAppearEvent,
 } from "@elgato/streamdeck";
 import type { JsonValue } from "@elgato/utils";
-import { engine } from "../engine.js";
+import { runStopAll } from "../remote-actions.js";
 import { isGroupsEvent, normGroup, sendGroups } from "../groups.js";
 import { inGroup, playbacks } from "../registry.js";
 import { stopKey } from "../render.js";
@@ -34,11 +34,6 @@ export class StopAllAction extends SingletonAction<StopAllSettings> {
   }
 
   override onKeyDown(ev: KeyDownEvent<StopAllSettings>): void {
-    const s = ev.payload.settings;
-    for (const p of playbacks.values()) {
-      if (!inGroup(p, normGroup(s.group))) continue;
-      if (s.mode === "cut") engine.cut(p.id);
-      else engine.stopPlayback(p.id, s.fade ?? 1.5);
-    }
+    runStopAll(ev.payload.settings);
   }
 }

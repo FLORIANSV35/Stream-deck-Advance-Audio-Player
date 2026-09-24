@@ -27,10 +27,10 @@ def page(title, subtitle, body, scripts=()):
 def item(label, inner, extra=""):
     return f'    <sdpi-item label="{label}"{extra}>{inner}</sdpi-item>\n'
 
-def card(badge, title, body, *, open=False, cls="", sub="", tag="", subattr=""):
+def card(badge, title, body, *, open=False, cls="", sub="", tag="", subattr="", attr=""):
     sub_html = f'<span class="sub"{subattr}>{sub}</span>' if sub or subattr else ""
     tag_html = f'<span class="tag">{tag}</span>' if tag else ""
-    return f'''  <details class="card {cls}"{" open" if open else ""}>
+    return f'''  <details class="card {cls}"{" open" if open else ""}{attr}>
     <summary><span class="badge">{badge}</span><span class="meta"><span class="title">{title}</span>{sub_html}</span>{tag_html}</summary>
     <div class="body">
 {body}    </div>
@@ -90,7 +90,15 @@ def play():
         item("", '<label class="updcheck"><input type="checkbox" id="update-enabled" checked> Check GitHub for new versions</label>') +
         item("Version", '<span id="update-current" class="updcur">…</span>'),
         cls="plain")
-    return page("Play sounds", "Up to 6 tracks, synchronized to the millisecond", body, ["waveform.js", "outputs.js", "links.js", "wide.js", "update.js"])
+    body += '  <h2 class="section">Network control</h2>\n'
+    body += card("⌁", "Network control",
+        item("", '<label class="updcheck"><input type="checkbox" id="net-enabled"> Let other computers on this network trigger sounds here</label>') +
+        item("Passphrase", '<input type="text" id="net-key" class="plain-input" placeholder="Shared with the other computer\'s Remote Trigger keys" autocomplete="off">') +
+        item("Port", '<input type="number" id="net-port" class="plain-input" min="1" max="65535" placeholder="57991">') +
+        item("Status", '<span id="net-status" class="updcur">…</span>'),
+        cls="plain")
+    body += '  <sdpi-note>On the other computer, add a <b>Remote Trigger</b> key and enter this computer\'s address, the port above, and the same passphrase.</sdpi-note>\n'
+    return page("Play sounds", "Up to 6 tracks, synchronized to the millisecond", body, ["waveform.js", "outputs.js", "links.js", "wide.js", "update.js", "network.js"])
 
 def volume():
     body = '  <h2 class="section">Setting</h2>\n' + card("♪", "Live volume",
@@ -152,7 +160,71 @@ def seek():
     body += '  <sdpi-note>Acts on all playbacks of the chosen group, together and without offset. Dial: rotate = scrub, press or touch = pause / resume.</sdpi-note>\n'
     return page("Skip forward / back", "Move within the playback", body)
 
-for name, fn in [("play", play), ("volume", volume), ("stopall", stopall), ("seek", seek), ("exitloop", exitloop), ("looppoint", looppoint)]:
+def remotetrigger():
+    body = '  <h2 class="section">Connection</h2>\n' + card("⌁", "Other computer",
+        item("Display name", '<sdpi-textfield setting="label" placeholder="Remote" maxlength="24"></sdpi-textfield>') +
+        item("Host / IP", '<sdpi-textfield setting="host" placeholder="e.g. 192.168.1.23"></sdpi-textfield>') +
+        item("Port", '<sdpi-textfield setting="port" placeholder="57991" pattern="^[0-9]*$"></sdpi-textfield>') +
+        item("Passphrase", '<sdpi-textfield setting="key" placeholder="Same as on the other computer"></sdpi-textfield>') +
+        item("", '<button type="button" id="test-connection" class="testbtn">Test connection</button> <span id="test-status" class="teststatus"></span>'),
+        open=True, cls="plain")
+    body += '  <h2 class="section">Action</h2>\n'
+    body += card("▶", "What to trigger",
+        item("Kind", '''<sdpi-select setting="kind" default="play">
+        <option value="play">Play a key</option>
+        <option value="volume">Volume</option>
+        <option value="skip">Skip forward / back</option>
+        <option value="stopAll">Stop all</option>
+        <option value="exitLoop">Exit loop</option>
+        <option value="loopPoint">Set loop point</option>
+      </sdpi-select>'''),
+        open=True, cls="plain")
+    body += card("▶", "Play a key", attr=' data-kind="play"', body=item("Target key",
+        '<select id="target-key" class="plain-input" data-kind="play"><option value="">Test the connection first…</option></select>' +
+        '<sdpi-textfield style="display:none" setting="targetCtx"></sdpi-textfield>' +
+        '<sdpi-textfield style="display:none" setting="targetLabel"></sdpi-textfield>'),
+        cls="plain")
+    body += card("▶", "Volume",
+        item("Target group", '<sdpi-textfield setting="target" data-kind="volume" placeholder="* = master (all sounds)"></sdpi-textfield>') +
+        item("Mode", '''<sdpi-select setting="mode" data-kind="volume" default="up">
+        <option value="up">Volume +</option>
+        <option value="down">Volume −</option>
+        <option value="mute">Mute / unmute</option>
+        <option value="set">Set to a value</option>
+      </sdpi-select>''') +
+        item("Step (%)", '<sdpi-range setting="step" data-kind="volume" min="1" max="20" step="1" default="5" showlabels></sdpi-range>') +
+        item("Fixed value (%)", '<sdpi-range setting="value" data-kind="volume" min="0" max="100" step="1" default="100" showlabels></sdpi-range>'),
+        cls="plain", attr=' data-kind="volume"')
+    body += card("▶", "Skip forward / back",
+        item("Group", '<sdpi-textfield setting="group" data-kind="skip" placeholder="Blank = all sounds"></sdpi-textfield>') +
+        item("Direction", '''<sdpi-select setting="direction" data-kind="skip" default="forward">
+        <option value="forward">Forward</option>
+        <option value="back">Back</option>
+      </sdpi-select>''') +
+        item("Seconds", '<sdpi-range setting="seconds" data-kind="skip" min="1" max="60" step="1" default="10" showlabels></sdpi-range>'),
+        cls="plain", attr=' data-kind="skip"')
+    body += card("▶", "Stop all",
+        item("Group", '<sdpi-textfield setting="group" data-kind="stopAll" placeholder="Blank = all sounds"></sdpi-textfield>') +
+        item("Stop", '''<sdpi-select setting="mode" data-kind="stopAll" default="fade">
+        <option value="fade">With fade</option>
+        <option value="cut">Cut immediately</option>
+      </sdpi-select>''') +
+        item("Fade duration (s)", '<sdpi-range setting="fade" data-kind="stopAll" min="0.1" max="10" step="0.1" default="1.5" showlabels></sdpi-range>'),
+        cls="plain", attr=' data-kind="stopAll"')
+    body += card("▶", "Exit loop",
+        item("Group", '<sdpi-textfield setting="group" data-kind="exitLoop" placeholder="Blank = all sounds"></sdpi-textfield>'),
+        cls="plain", attr=' data-kind="exitLoop"')
+    body += card("▶", "Set loop point",
+        item("Group", '<sdpi-textfield setting="group" data-kind="loopPoint" placeholder="Blank = all sounds"></sdpi-textfield>') +
+        item("Which point", '''<sdpi-select setting="which" data-kind="loopPoint" default="in">
+        <option value="in">Loop in</option>
+        <option value="out">Loop out</option>
+      </sdpi-select>'''),
+        cls="plain", attr=' data-kind="loopPoint"')
+    body += '  <sdpi-note>The other computer must have <b>Network control</b> enabled (Play key settings, bottom section) with the same passphrase. A group name must match exactly what is used there.</sdpi-note>\n'
+    return page("Remote Trigger", "Trigger a sound (or a group control) on another computer", body, ["remote.js"])
+
+for name, fn in [("play", play), ("volume", volume), ("stopall", stopall), ("seek", seek), ("exitloop", exitloop), ("looppoint", looppoint), ("remotetrigger", remotetrigger)]:
     with open(os.path.join(UI, f"{name}.html"), "w") as f:
         f.write(fn())
 print("ok")

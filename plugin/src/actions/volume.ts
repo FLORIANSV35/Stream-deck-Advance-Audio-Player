@@ -15,6 +15,7 @@ import {
 import type { JsonValue } from "@elgato/utils";
 import { isGroupsEvent, sendGroups } from "../groups.js";
 import { mixer } from "../mixer.js";
+import { runVolume } from "../remote-actions.js";
 import { volumeKey } from "../render.js";
 import type { VolumeSettings } from "../settings.js";
 
@@ -51,16 +52,7 @@ export class VolumeAction extends SingletonAction<VolumeSettings> {
   }
 
   override onKeyDown(ev: KeyDownEvent<VolumeSettings>): void {
-    const s = ev.payload.settings;
-    const target = s.target || "*";
-    const step = s.step ?? 5;
-    const lvl = mixer.level(target);
-    switch (s.mode ?? "up") {
-      case "up": mixer.set(target, { pct: lvl.pct + step, muted: false }); break;
-      case "down": mixer.set(target, { pct: lvl.pct - step }); break;
-      case "mute": mixer.set(target, { muted: !lvl.muted }); break;
-      case "set": mixer.set(target, { pct: s.value ?? 100, muted: false }); break;
-    }
+    runVolume(ev.payload.settings);
   }
 
   override onDialRotate(ev: DialRotateEvent<VolumeSettings>): void {

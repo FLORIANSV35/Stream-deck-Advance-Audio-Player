@@ -161,3 +161,21 @@ export function loopPointKey(o: { label: string; group?: string; which: "in" | "
     ${text(72, 137, 13, C.text, clip(o.label, 16), { weight: 500 })}
   `));
 }
+
+export function remoteKey(o: { label: string; kind: string; status?: "ok" | "error" }): string {
+  // two nodes linked by a dashed line: "this key" reaching another computer over the network
+  const dash = o.status === "error" ? `stroke="${C.red[1]}"` : `stroke="url(#b)"`;
+  const nodes = `
+    <circle cx="50" cy="78" r="11" fill="none" stroke="url(#b)" stroke-width="6"/>
+    <circle cx="94" cy="78" r="11" fill="none" stroke="url(#b)" stroke-width="6"/>
+    <line x1="63" y1="78" x2="81" y2="78" ${dash} stroke-width="5" stroke-linecap="round" stroke-dasharray="4 4"/>`;
+  const KIND_LABEL: Record<string, string> = {
+    play: "PLAY", volume: "VOLUME", skip: "SKIP", stopAll: "STOP ALL", exitLoop: "EXIT LOOP", loopPoint: "LOOP POINT",
+  };
+  return uri(frame(`
+    ${text(72, 24, 16, C.muted, clip(KIND_LABEL[o.kind] ?? "REMOTE", 14), { weight: 600, spacing: 1.2 })}
+    <circle cx="72" cy="78" r="${RING_R}" fill="none" stroke="${C.faint}" stroke-width="7"/>
+    ${nodes}
+    ${text(72, 137, 13, C.text, clip(o.label, 16), { weight: 500 })}
+  `));
+}

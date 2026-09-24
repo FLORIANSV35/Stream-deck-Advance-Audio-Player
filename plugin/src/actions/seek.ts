@@ -14,6 +14,7 @@ import {
 } from "@elgato/streamdeck";
 import type { JsonValue } from "@elgato/utils";
 import { engine } from "../engine.js";
+import { runSkip } from "../remote-actions.js";
 import { isGroupsEvent, normGroup, sendGroups } from "../groups.js";
 import { inGroup, playbacks, type Playback } from "../registry.js";
 import { fmtTime, seekKey } from "../render.js";
@@ -61,12 +62,13 @@ export class SeekAction extends SingletonAction<SeekSettings> {
   }
 
   override onKeyDown(ev: KeyDownEvent<SeekSettings>): void {
-    const s = ev.payload.settings;
-    this.#skip(s, (s.direction === "back" ? -1 : 1) * (s.seconds ?? 10));
+    runSkip(ev.payload.settings);
   }
 
   override onDialRotate(ev: DialRotateEvent<SeekSettings>): void {
-    this.#skip(ev.payload.settings, ev.payload.ticks * (ev.payload.settings.dialStep ?? 2));
+    // a single command for all playbacks: they skip together and stay in sync
+    const ids = targets(ev.payload.settings).map((p) => p.id);
+    if (ids.length > 0) engine.seekMany(ids, ev.payload.ticks * (ev.payload.settings.dialStep ?? 2));
   }
 
   override onDialDown(ev: DialDownEvent<SeekSettings>): void {
@@ -75,12 +77,6 @@ export class SeekAction extends SingletonAction<SeekSettings> {
 
   override onTouchTap(ev: TouchTapEvent<SeekSettings>): void {
     this.#togglePause(ev.payload.settings);
-  }
-
-  #skip(s: SeekSettings, delta: number): void {
-    // a single command for all playbacks: they skip together and stay in sync
-    const ids = targets(s).map((p) => p.id);
-    if (ids.length > 0) engine.seekMany(ids, delta);
   }
 
   #togglePause(s: SeekSettings): void {
