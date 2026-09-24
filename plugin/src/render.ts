@@ -97,18 +97,13 @@ export function volumeKey(o: { target: string; icon: "up" | "down" | "mute" | "s
     mute: `<path d="M50 60 h12 l16 -13 v42 l-16 -13 h-12 z" fill="url(#${accent})"/><path d="M90 58 l16 20 M106 58 l-16 20" stroke="${C.red[1]}" stroke-width="6" stroke-linecap="round"/>`,
     set: `<rect x="52" y="56" width="40" height="7" rx="3.5" fill="url(#${accent})"/><rect x="52" y="70" width="40" height="7" rx="3.5" fill="url(#${accent})"/>`,
   }[o.icon];
-  // the bar spans 0-200 %, with a tick at the 100 % (unity) mark; anything past it fills in amber, as a boost
-  const pct = o.muted ? 0 : Math.max(0, Math.min(200, o.pct));
-  const baseWidth = (Math.min(pct, 100) / 200) * 100;
-  const boostWidth = (Math.max(0, pct - 100) / 200) * 100;
+  const level = o.muted ? 0 : o.pct / 100;
   return uri(frame(`
     ${text(72, 24, 16, C.muted, clip(o.target === "*" ? "MASTER" : o.target.toUpperCase(), 12), { weight: 600, spacing: 1.2 })}
     <g transform="translate(${o.icon === "mute" ? -6 : 0} ${o.icon === "mute" ? 0 : -2})">${glyph}</g>
     ${text(72, 112, 30, o.muted ? C.red[0] : C.text, o.muted ? "MUTE" : `${o.pct}%`, { weight: 700, mono: true, spacing: -0.5 })}
     <rect x="22" y="123" width="100" height="6" rx="3" fill="${C.faint}"/>
-    <rect x="71" y="120.5" width="2" height="11" rx="1" fill="#4b5160"/>
-    ${baseWidth > 0 ? `<rect x="22" y="123" width="${baseWidth.toFixed(1)}" height="6" rx="3" fill="url(#g)"/>` : ""}
-    ${boostWidth > 0 ? `<rect x="${(22 + baseWidth).toFixed(1)}" y="123" width="${boostWidth.toFixed(1)}" height="6" rx="3" fill="url(#a)"/>` : ""}
+    ${level > 0 ? `<rect x="22" y="123" width="${(100 * level).toFixed(1)}" height="6" rx="3" fill="url(#g)"/>` : ""}
   `));
 }
 
