@@ -3,8 +3,8 @@ import { EventEmitter } from "node:events";
 
 type Level = { pct: number; muted: boolean };
 
-/** Volume curve: 100 % = gain 1, 50 % ≈ -12 dB, finer resolution at low levels. */
-export const toGain = (pct: number): number => Math.max(0, Math.min(1, pct / 100)) ** 2;
+/** Volume curve: 100 % = gain 1, 50 % ≈ -12 dB, finer resolution at low levels; up to 200 % = gain 4 (+12 dB boost). */
+export const toGain = (pct: number): number => Math.max(0, Math.min(2, pct / 100)) ** 2;
 
 /** Live levels per target: "*" (master) and one level per group. Persisted between sessions. */
 class Mixer extends EventEmitter<{ change: [target: string] }> {
@@ -57,7 +57,7 @@ class Mixer extends EventEmitter<{ change: [target: string] }> {
   set(target: string, patch: Partial<Level>): void {
     const cur = this.level(target);
     const next: Level = { pct: patch.pct ?? cur.pct, muted: patch.muted ?? cur.muted };
-    next.pct = Math.max(0, Math.min(100, Math.round(next.pct)));
+    next.pct = Math.max(0, Math.min(200, Math.round(next.pct)));
     this.#levels.set(target, next);
     this.#save();
     this.emit("change", target);

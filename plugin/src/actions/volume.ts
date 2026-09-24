@@ -84,7 +84,8 @@ export class VolumeAction extends SingletonAction<VolumeSettings> {
       void surface.setFeedback({
         title: target === "*" ? "Master" : target,
         value: lvl.muted ? "MUTE" : `${lvl.pct}%`,
-        indicator: { value: lvl.muted ? 0 : lvl.pct },
+        // the ring only takes 0-100; a boost above unity just shows as full, the number alongside still reads the real value
+        indicator: { value: lvl.muted ? 0 : Math.min(100, lvl.pct) },
       });
     } else {
       void surface.setImage(volumeKey({ target, icon: s.mode ?? "up", pct: lvl.pct, muted: lvl.muted }));

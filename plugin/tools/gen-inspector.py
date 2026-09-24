@@ -110,7 +110,7 @@ def volume():
         <option value="set">Set to a value</option>
       </sdpi-select>''') +
         item("Step (%)", '<sdpi-range setting="step" min="1" max="20" step="1" default="5" showlabels></sdpi-range>') +
-        item("Fixed value (%)", '<sdpi-range setting="value" min="0" max="100" step="1" default="100" showlabels></sdpi-range>'),
+        item("Fixed value (%)", '<sdpi-range setting="value" min="0" max="200" step="1" default="100" showlabels></sdpi-range>'),
         open=True, cls="plain")
     body += '  <sdpi-note>On a dial: rotate = volume, press or touch = mute. The step applies to each notch.</sdpi-note>\n'
     return page("Volume", "Master or per group of sounds", body)
@@ -193,7 +193,7 @@ def remotetrigger():
         <option value="set">Set to a value</option>
       </sdpi-select>''') +
         item("Step (%)", '<sdpi-range setting="step" data-kind="volume" min="1" max="20" step="1" default="5" showlabels></sdpi-range>') +
-        item("Fixed value (%)", '<sdpi-range setting="value" data-kind="volume" min="0" max="100" step="1" default="100" showlabels></sdpi-range>'),
+        item("Fixed value (%)", '<sdpi-range setting="value" data-kind="volume" min="0" max="200" step="1" default="100" showlabels></sdpi-range>'),
         cls="plain", attr=' data-kind="volume"')
     body += card("▶", "Skip forward / back",
         item("Group", '<sdpi-textfield setting="group" data-kind="skip" placeholder="Blank = all sounds"></sdpi-textfield>') +
