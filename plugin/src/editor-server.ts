@@ -129,7 +129,7 @@ export class EditorServer {
     }
   }
 
-  /** `play.html` adapted to a browser tab: larger layout, all tracks open, a real path field in place of the file picker. */
+  /** `play.html` adapted to a browser tab: larger layout, only track 1 open, a real path field in place of the file picker. */
   async #page(ctx: string, session: NonNullable<ReturnType<EditorHost["session"]>>): Promise<string> {
     let html = await readFile(join(this.#uiDir, "play.html"), "utf8");
     html = html
@@ -140,7 +140,8 @@ export class EditorServer {
         '<div class="filerow"><sdpi-textfield setting="$1" placeholder="Path to an audio file"></sdpi-textfield>' +
           '<button type="button" class="browse" data-setting="$1">Browse…</button></div>',
       )
-      .replace(/<details class="card /g, '<details open class="card ')
+      // every section collapsed by default, except track 1 (its <details> is the only one with no cls: "card " vs. "card slave"/"card plain")
+      .replace(/<details class="card ([^"]*)" open>/g, (m, cls: string) => (cls === "" ? m : `<details class="card ${cls}">`))
       .replace("</head>", '  <link rel="stylesheet" href="popup.css" />\n</head>')
       .replace("<body>", '<body class="popup">');
     const uuid = `${this.#token}:${ctx}`;
