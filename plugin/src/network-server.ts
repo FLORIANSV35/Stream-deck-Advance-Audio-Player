@@ -113,6 +113,11 @@ class NetworkControl {
       if (req.method === "GET" && url.pathname === "/v1/groups") {
         return send(200, { ok: true, groups: mixer.groups() });
       }
+      if (req.method === "GET" && url.pathname === "/v1/status") {
+        const ctx = url.searchParams.get("ctx") ?? "";
+        const view = playAction?.viewOf(ctx);
+        return send(200, view ? { ok: true, view } : { ok: false, error: "Key not found (is it showing on a deck?)" });
+      }
       if (req.method === "POST" && url.pathname === "/v1/trigger") {
         const body = await this.#json(req);
         return send(200, await this.#trigger(body));

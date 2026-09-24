@@ -2,21 +2,26 @@ import streamDeck, {
   action,
   SingletonAction,
   type DidReceiveSettingsEvent,
+  type KeyAction,
   type KeyDownEvent,
   type SendToPluginEvent,
   type WillAppearEvent,
+  type WillDisappearEvent,
 } from "@elgato/streamdeck";
 import type { JsonValue } from "@elgato/utils";
-import { remoteKey } from "../render.js";
+import { playKey, remoteKey, type PlayView } from "../render.js";
 import type { RemoteTriggerSettings } from "../settings.js";
 
 const TIMEOUT_MS = 5000;
+/** How often a "Play a key" Remote Trigger re-fetches the target's state to mirror its countdown and ring. */
+const POLL_MS = 1000;
 
 interface ApiResult {
   ok: boolean;
   error?: string;
   keys?: { ctx: string; label: string; group: string }[];
   groups?: string[];
+  view?: PlayView;
 }
 
 async function call(host: string, port: number, key: string, path: string, init?: { method?: string; body?: unknown }): Promise<ApiResult> {
@@ -42,16 +47,45 @@ async function call(host: string, port: number, key: string, path: string, init?
  * computer's SAAP Audio over the network (see network-server.ts on the host side). */
 @action({ UUID: "com.saap.audio.remote" })
 export class RemoteTriggerAction extends SingletonAction<RemoteTriggerSettings> {
+  /** One interval per showing key, only while it targets "Play a key" — mirrors that key's countdown and
+   * progress ring here, the same way it would look on the host's own deck. */
+  #polls = new Map<string, ReturnType<typeof setInterval>>();
+
   #image(s: RemoteTriggerSettings): string {
     return remoteKey({ label: s.label?.trim() || s.targetLabel || "Remote", kind: s.kind ?? "play", which: s.which });
   }
 
   override onWillAppear(ev: WillAppearEvent<RemoteTriggerSettings>): void {
-    if (ev.action.isKey()) void ev.action.setImage(this.#image(ev.payload.settings));
+    if (!ev.action.isKey()) return;
+    void ev.action.setImage(this.#image(ev.payload.settings));
+    this.#restartPoll(ev.action, ev.payload.settings);
+  }
+
+  override onWillDisappear(ev: WillDisappearEvent<RemoteTriggerSettings>): void {
+    this.#stopPoll(ev.action.id);
   }
 
   override onDidReceiveSettings(ev: DidReceiveSettingsEvent<RemoteTriggerSettings>): void {
-    if (ev.action.isKey()) void ev.action.setImage(this.#image(ev.payload.settings));
+    if (!ev.action.isKey()) return;
+    void ev.action.setImage(this.#image(ev.payload.settings));
+    this.#restartPoll(ev.action, ev.payload.settings);
+  }
+
+  #stopPoll(id: string): void {
+    const t = this.#polls.get(id);
+    if (t) { clearInterval(t); this.#polls.delete(id); }
+  }
+
+  #restartPoll(key: KeyAction<RemoteTriggerSettings>, s: RemoteTriggerSettings): void {
+    this.#stopPoll(key.id);
+    if ((s.kind ?? "play") !== "play" || !s.host || !s.key || !s.targetCtx) return;
+    const { host, port, key: passphrase, targetCtx } = s;
+    const poll = async () => {
+      const result = await call(host, port ?? 0, passphrase!, `/v1/status?ctx=${encodeURIComponent(targetCtx!)}`);
+      void key.setImage(result.ok && result.view ? playKey(result.view) : this.#image(s));
+    };
+    void poll();
+    this.#polls.set(key.id, setInterval(() => void poll(), POLL_MS));
   }
 
   override async onSendToPlugin(ev: SendToPluginEvent<JsonValue, RemoteTriggerSettings>): Promise<void> {

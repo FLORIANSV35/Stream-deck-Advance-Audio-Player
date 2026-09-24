@@ -349,33 +349,38 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     this.#render(ctx);
   }
 
-  #render(id: string): void {
-    const key = this.#keys.get(id);
-    if (!key) return;
+  /** What the key currently shows — also used by a Remote Trigger key on another computer to mirror this key's
+   * countdown and progress ring (see network-server.ts's /v1/status). */
+  viewOf(id: string): PlayView | undefined {
+    if (!this.#keys.has(id)) return undefined;
     const s = this.#settings.get(id) ?? {};
     const first = s.file as string | undefined;
     const label = s.label || (first ? basename(first, extname(first)) : "Choose a file");
     const active = tracksOf(id);
     const configured = Array.from({ length: MAX_TRACKS }, (_, i) => trackSettings(s, i + 1)).filter((t) => t.file).length;
     const remaining = s.countdown !== false;
-    let view: PlayView;
     if (active.length === 0) {
-      view = { label, group: normGroup(s.group), state: "idle", tracks: configured, loop: !!s.loop };
-    } else {
-      // the display follows the longest track (non-looping if possible)
-      const measured = active.filter((p) => p.dur > 0);
-      // once a track is exiting its loop, it behaves like a finite track again (an end is now in sight)
-      const finite = measured.filter((p) => !p.settings.loop || p.exiting);
-      const ref = (finite.length ? finite : measured).sort((a, b) => b.dur - b.pos - (a.dur - a.pos))[0];
-      const looping = !!ref?.settings.loop && !ref?.exiting;
-      const showRemaining = remaining && !looping;
-      view = {
-        label, group: normGroup(s.group), tracks: configured, loop: looping, exiting: !!ref?.exiting,
-        state: active.every((p) => p.state === "paused") ? "paused" : "playing",
-        time: ref ? (showRemaining ? "-" : "") + fmtTime(showRemaining ? ref.dur - ref.pos : ref.pos) : "…",
-        progress: ref ? ref.pos / ref.dur : 0,
-      };
+      return { label, group: normGroup(s.group), state: "idle", tracks: configured, loop: !!s.loop };
     }
+    // the display follows the longest track (non-looping if possible)
+    const measured = active.filter((p) => p.dur > 0);
+    // once a track is exiting its loop, it behaves like a finite track again (an end is now in sight)
+    const finite = measured.filter((p) => !p.settings.loop || p.exiting);
+    const ref = (finite.length ? finite : measured).sort((a, b) => b.dur - b.pos - (a.dur - a.pos))[0];
+    const looping = !!ref?.settings.loop && !ref?.exiting;
+    const showRemaining = remaining && !looping;
+    return {
+      label, group: normGroup(s.group), tracks: configured, loop: looping, exiting: !!ref?.exiting,
+      state: active.every((p) => p.state === "paused") ? "paused" : "playing",
+      time: ref ? (showRemaining ? "-" : "") + fmtTime(showRemaining ? ref.dur - ref.pos : ref.pos) : "…",
+      progress: ref ? ref.pos / ref.dur : 0,
+    };
+  }
+
+  #render(id: string): void {
+    const key = this.#keys.get(id);
+    const view = this.viewOf(id);
+    if (!key || !view) return;
     // only resend the image when the display changed (time to the second, bar to the pixel)
     const sig = JSON.stringify({ ...view, progress: Math.round((view.progress ?? 0) * 60) });
     if (this.#lastView.get(id) === sig) return;
