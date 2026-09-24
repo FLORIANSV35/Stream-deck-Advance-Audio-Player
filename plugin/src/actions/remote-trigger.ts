@@ -9,7 +9,7 @@ import streamDeck, {
   type WillDisappearEvent,
 } from "@elgato/streamdeck";
 import type { JsonValue } from "@elgato/utils";
-import { playKey, remoteKey, type PlayView } from "../render.js";
+import { playKey, remoteKey, withStatusBadge, type PlayView } from "../render.js";
 import type { RemoteTriggerSettings } from "../settings.js";
 
 const TIMEOUT_MS = 5000;
@@ -117,10 +117,13 @@ export class RemoteTriggerAction extends SingletonAction<RemoteTriggerSettings> 
       case "loopPoint": Object.assign(body, { group: s.group, which: s.which }); break;
     }
     const result = await call(host, port, key, "/v1/trigger", { method: "POST", body });
-    if (result.ok) void ev.action.showOk();
-    else {
-      void ev.action.showAlert();
-      if (result.error) streamDeck.logger.warn(`Remote Trigger: ${result.error}`);
+    if (!result.ok && result.error) streamDeck.logger.warn(`Remote Trigger: ${result.error}`);
+    // a small corner badge instead of Stream Deck's own full-key showOk()/showAlert(), which would otherwise
+    // hide a mirrored "Play a key" countdown; that poll (still running) naturally clears it within a second,
+    // so only the other kinds need reverting back to their plain icon here
+    if (ev.action.isKey()) {
+      void ev.action.setImage(withStatusBadge(this.#image(s), result.ok));
+      if (kind !== "play") setTimeout(() => void ev.action.setImage(this.#image(s)), 1000);
     }
   }
 }

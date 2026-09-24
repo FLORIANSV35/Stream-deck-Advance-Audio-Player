@@ -194,3 +194,17 @@ export function remoteKey(o: { label: string; kind: string; which?: "in" | "out"
     ${text(72, 137, 13, C.text, clip(o.label, 16), { weight: 500 })}
   `));
 }
+
+/** Adds a small corner badge (done / failed) to an already-rendered key image, in place of Stream Deck's own
+ * full-key showOk()/showAlert() overlay — used by Remote Trigger so a press's result doesn't hide the rest of
+ * the icon (e.g. a mirrored countdown). */
+export function withStatusBadge(dataUri: string, ok: boolean): string {
+  const svg = decodeURIComponent(dataUri.replace("data:image/svg+xml;charset=utf8,", ""));
+  const mark = ok
+    ? `<path d="M119 27 L123 31 L131 21" fill="none" stroke="#052e1d" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>`
+    : `<path d="M120 21 L130 31 M130 21 L120 31" stroke="#450a0a" stroke-width="3.2" stroke-linecap="round"/>`;
+  const badge = `
+    <circle cx="125" cy="26" r="14" fill="url(#${ok ? "g" : "r"})" stroke="#0d0f13" stroke-width="2.5"/>
+    ${mark}`;
+  return `data:image/svg+xml;charset=utf8,${encodeURIComponent(svg.replace("</svg>", `${badge}</svg>`))}`;
+}
