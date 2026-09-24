@@ -55,7 +55,8 @@ def track_fields(n):
     return out
 
 def play():
-    body = '  <sdpi-note>Each track has its own file and outputs. One press starts every track that has a file, exactly at the same time.</sdpi-note>\n'
+    body = '  <div class="updatebar" id="updatebar" hidden><span id="update-text"></span><button type="button" id="update-install">Install</button><button type="button" id="update-notes" class="ghost">What\'s new</button></div>\n'
+    body += '  <sdpi-note>Each track has its own file and outputs. One press starts every track that has a file, exactly at the same time.</sdpi-note>\n'
     body += '  <!--wide-btn--><div class="widebar"><button type="button" id="open-wide">Open large editor ↗</button><span>Bigger waveform, all six tracks side by side — opens in your browser.</span></div><!--/wide-btn-->\n'
     body += '  <h2 class="section">Tracks</h2>\n'
     body += '  <div class="tracks">\n'
@@ -84,7 +85,12 @@ def play():
         item("New group", '<sdpi-textfield setting="newGroup" placeholder="Type a name, then press Enter" maxlength="20"></sdpi-textfield>') +
         item("", '<sdpi-checkbox setting="stopOthers" label="Stop other sounds of the same group on start"></sdpi-checkbox>'),
         open=True, cls="plain")
-    return page("Play sounds", "Up to 6 tracks, synchronized to the millisecond", body, ["waveform.js", "outputs.js", "links.js", "wide.js"])
+    body += '  <h2 class="section">Updates</h2>\n'
+    body += card("↻", "Updates",
+        item("", '<label class="updcheck"><input type="checkbox" id="update-enabled" checked> Check GitHub for new versions</label>') +
+        item("Version", '<span id="update-current" class="updcur">…</span>'),
+        cls="plain")
+    return page("Play sounds", "Up to 6 tracks, synchronized to the millisecond", body, ["waveform.js", "outputs.js", "links.js", "wide.js", "update.js"])
 
 def volume():
     body = '  <h2 class="section">Setting</h2>\n' + card("♪", "Live volume",

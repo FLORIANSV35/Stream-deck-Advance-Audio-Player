@@ -10,18 +10,33 @@ export const toGain = (pct: number): number => Math.max(0, Math.min(1, pct / 100
 class Mixer extends EventEmitter<{ change: [target: string] }> {
   #levels = new Map<string, Level>();
   #groups = new Set<string>();
+  /** The rest of the global settings (other features' preferences): written back untouched with every save. */
+  #other: Record<string, unknown> = {};
 
   async load(): Promise<void> {
     const g = await streamDeck.settings.getGlobalSettings<{ levels?: { [target: string]: Level }; groups?: string[] }>();
+    const { levels: _levels, groups: _groups, ...other } = g;
+    this.#other = other;
     for (const [k, v] of Object.entries(g.levels ?? {})) this.#levels.set(k, v);
     for (const name of g.groups ?? []) this.#groups.add(name);
   }
 
   #save(): void {
     void streamDeck.settings.setGlobalSettings({
+      ...this.#other,
       levels: Object.fromEntries(this.#levels),
       groups: [...this.#groups],
     });
+  }
+
+  /** A preference stored next to the mixer levels in the global settings. */
+  pref<T>(key: string, fallback: T): T {
+    return (this.#other[key] as T | undefined) ?? fallback;
+  }
+
+  setPref(key: string, value: unknown): void {
+    this.#other[key] = value;
+    this.#save();
   }
 
   /** Remembers a group name so it can be offered in the menus. */

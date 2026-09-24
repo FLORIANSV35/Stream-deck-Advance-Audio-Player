@@ -80,6 +80,10 @@ anything itself.
   through to its trim-out point. Has no effect on a track that isn't looping.
 - **Stop all** (key): all sounds or one group, with a fade or an immediate cut. Give each button its own name to
   have several stop buttons.
+- **Update check**: the plugin looks on GitHub for a newer release (one anonymous request at startup, then daily;
+  pre-releases are ignored) and shows a bar at the top of the settings panel and of the large editor, with
+  **Install** (downloads the package and opens it — Stream Deck asks you to confirm) and **What's new**. It can be
+  switched off in the panel's *Updates* section.
 - **Groups**: a free name per sound; "stop the group's other sounds on start" gives exclusive playback.
 
 ## Architecture

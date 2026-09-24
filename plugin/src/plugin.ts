@@ -7,6 +7,7 @@ import { StopAllAction } from "./actions/stop-all.js";
 import { VolumeAction } from "./actions/volume.js";
 import { engine } from "./engine.js";
 import { mixer } from "./mixer.js";
+import { updater } from "./updater.js";
 
 streamDeck.logger.setLevel("info");
 
@@ -23,3 +24,4 @@ streamDeck.actions.registerAction(new StopAllAction());
 await streamDeck.connect();
 // global settings can only be read once connected
 await mixer.load();
+updater.start();

@@ -9,6 +9,7 @@
 <body>
   <header class="hero"><svg viewBox="0 0 36 36"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5eead4"/><stop offset="1" stop-color="#22c55e"/></linearGradient></defs>
 <rect width="36" height="36" rx="9" fill="#1d2027"/><g fill="url(#lg)"><rect x="7" y="15" width="3" height="6" rx="1.5"/><rect x="12" y="10" width="3" height="16" rx="1.5"/><rect x="17" y="6" width="3" height="24" rx="1.5"/><rect x="22" y="12" width="3" height="12" rx="1.5"/><rect x="27" y="16" width="3" height="4" rx="1.5"/></g></svg><div><h1>Play sounds</h1><p>Up to 6 tracks, synchronized to the millisecond</p></div></header>
+  <div class="updatebar" id="updatebar" hidden><span id="update-text"></span><button type="button" id="update-install">Install</button><button type="button" id="update-notes" class="ghost">What's new</button></div>
   <sdpi-note>Each track has its own file and outputs. One press starts every track that has a file, exactly at the same time.</sdpi-note>
   <!--wide-btn--><div class="widebar"><button type="button" id="open-wide">Open large editor ↗</button><span>Bigger waveform, all six tracks side by side — opens in your browser.</span></div><!--/wide-btn-->
   <h2 class="section">Tracks</h2>
@@ -142,10 +143,19 @@
     <sdpi-item label=""><sdpi-checkbox setting="stopOthers" label="Stop other sounds of the same group on start"></sdpi-checkbox></sdpi-item>
     </div>
   </details>
+  <h2 class="section">Updates</h2>
+  <details class="card plain">
+    <summary><span class="badge">↻</span><span class="meta"><span class="title">Updates</span></span></summary>
+    <div class="body">
+    <sdpi-item label=""><label class="updcheck"><input type="checkbox" id="update-enabled" checked> Check GitHub for new versions</label></sdpi-item>
+    <sdpi-item label="Version"><span id="update-current" class="updcur">…</span></sdpi-item>
+    </div>
+  </details>
 
   <script src="waveform.js"></script>
   <script src="outputs.js"></script>
   <script src="links.js"></script>
   <script src="wide.js"></script>
+  <script src="update.js"></script>
 </body>
 </html>

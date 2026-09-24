@@ -13,6 +13,7 @@ import streamDeck, {
   type WillDisappearEvent,
 } from "@elgato/streamdeck";
 import type { JsonValue } from "@elgato/utils";
+import { updater } from "../updater.js";
 import { EditorServer } from "../editor-server.js";
 import { engine, type PeaksResult, type PlayCommand } from "../engine.js";
 import { pickAudioFile } from "../filepicker.js";
@@ -189,6 +190,17 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       });
     } else if (event === "getOutputs") {
       await reply({ event, items: outputItems(await engine.devices()) });
+    } else if (event === "getUpdate") {
+      await reply({ event: "update", ...(await updater.state()) });
+    } else if (event === "setUpdateCheck") {
+      updater.setEnabled(!!(payload as { value?: unknown }).value);
+      await reply({ event: "update", ...(await updater.state()) });
+    } else if (event === "installUpdate") {
+      await reply({ event: "updateStatus", state: "downloading" });
+      const error = await updater.install();
+      await reply(error ? { event: "updateStatus", state: "error", message: error } : { event: "updateStatus", state: "opened" });
+    } else if (event === "openUpdatePage") {
+      await updater.openPage();
     } else if (event === "getKeys") {
       await reply(this.#tabs());
     } else if (event === "pickFile") {
