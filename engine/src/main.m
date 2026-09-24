@@ -205,7 +205,7 @@ static double num(NSDictionary *c, NSString *k, double d) {
     // crossfade's tail (there may be little to none if _loopEnd sits near _end)
     _loopFade = MAX(0, MIN(num(c, @"loopFade", 0), MIN((double)(_loopEnd - _loopStart) / _rate / 2.0, (double)(_end - _loopEnd) / _rate)));
     _autoFadeOut = num(c, @"fadeOut", 0);
-    _gain = _curGain = MAX(0, MIN(1, (float)num(c, @"volume", 1)));
+    _gain = _curGain = MAX(0, MIN(4, (float)num(c, @"volume", 1))); // 1 = unity; up to 4 = +12 dB boost (master/group/track volume can combine above 100 %)
     _fade = 1;
     _fadeArmTime = -1;
 
@@ -405,7 +405,7 @@ static double hostDelay(uint64_t host) {
     if (_fadingOut && !_rampStop && seconds < _duration - _autoFadeOut) { _fadingOut = NO; _hasRamp = NO; _fade = 1; }
 }
 
-- (void)setVolume:(float)v { _gain = MAX(0, MIN(1, v)); }
+- (void)setVolume:(float)v { _gain = MAX(0, MIN(4, v)); }
 
 - (void)pause {
     if (_paused) return;

@@ -43,7 +43,7 @@ def track_fields(n):
     out = item("File", f'<sdpi-file setting="{k("file")}" accept="{AUDIO}"></sdpi-file>')
     out += item("Waveform", f'<div class="wave" data-n="{n}"></div>')
     out += item("Outputs", f'<div class="outpick" data-n="{n}"></div>')
-    out += item("Volume", f'<sdpi-range setting="{k("volume")}" min="0" max="100" step="1" default="100" showlabels></sdpi-range>', link("volume"))
+    out += item("Volume", f'<sdpi-range setting="{k("volume")}" min="0" max="200" step="1" default="100" showlabels></sdpi-range>', link("volume"))
     out += item("Fade in (s)", f'<sdpi-range setting="{k("fadeIn")}" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range>', link("fades"))
     out += item("Fade out (s)", f'<sdpi-range setting="{k("fadeOut")}" min="0" max="10" step="0.1" default="0" showlabels></sdpi-range>', link("fades"))
     out += item("Trim in (s)", f'<sdpi-textfield setting="{k("trimIn")}" placeholder="0 = start of file" pattern="^[0-9]*[.,]?[0-9]*$"></sdpi-textfield>', link("cut"))
