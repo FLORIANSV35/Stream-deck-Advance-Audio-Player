@@ -91,17 +91,23 @@ static int defaultDeviceChannels(void) {
 // achieves for every real playback that follows.
 static NSMutableDictionary<NSNumber *, AVAudioEngine *> *warmEngines;
 
-// Idempotent: does nothing if this device is already warm. Best-effort — a device that fails to start here
-// will just be attempted again by the real playback engine, with the original (unfixed) latency.
-static void warmDevice(AudioDeviceID deviceID) {
+// Idempotent: does nothing but report done if this device is already warm. Best-effort — a device that fails
+// to start here will just be attempted again by the real playback engine, with the original (unfixed) latency,
+// and no "warmed" event (the plugin's loading indicator for it clears itself after a timeout regardless).
+// `uid` is whatever the caller (and so the plugin) identifies this device by — "default" included — so the
+// "warmed" event correlates back to the right pending entry regardless of which AudioDeviceID it resolved to.
+static void warmDevice(AudioDeviceID deviceID, NSString *uid) {
     if (!warmEngines) warmEngines = [NSMutableDictionary dictionary];
     NSNumber *key = @(deviceID);
-    if (warmEngines[key]) return;
+    if (warmEngines[key]) { emit(@{ @"evt": @"warmed", @"device": uid }); return; }
     AVAudioEngine *engine = [AVAudioEngine new];
     NSError *e = nil;
     if (![engine.outputNode.AUAudioUnit setDeviceID:deviceID error:&e]) return;
     (void)engine.mainMixerNode; // pulls in a silent path from mixer to output; nothing ever feeds it
-    if ([engine startAndReturnError:&e]) warmEngines[key] = engine;
+    if ([engine startAndReturnError:&e]) {
+        warmEngines[key] = engine;
+        emit(@{ @"evt": @"warmed", @"device": uid });
+    }
 }
 
 #pragma mark - Instance
@@ -221,7 +227,7 @@ static double num(NSDictionary *c, NSString *k, double d) {
         for (NSDictionary *d in outputDevices()) if ([d[@"uid"] isEqualToString:uid]) { found = d; break; }
         if (!found) { *err = [NSString stringWithFormat:@"Device not found: %@", uid]; return nil; }
         AudioDeviceID devID = [found[@"id"] unsignedIntValue];
-        warmDevice(devID); // no-op if already warm; otherwise this playback pays the warm-up cost instead
+        warmDevice(devID, uid); // no-op if already warm; otherwise this playback pays the warm-up cost instead
         if (![out.AUAudioUnit setDeviceID:devID error:&e]) {
             *err = [NSString stringWithFormat:@"Cannot use %@", found[@"name"]]; return nil;
         }
@@ -637,9 +643,9 @@ static void handle(NSString *line) {
         NSString *uid = c[@"device"];
         if ([uid isEqualToString:@"default"]) {
             AudioDeviceID dev = defaultOutputDevice();
-            if (dev) warmDevice(dev);
+            if (dev) warmDevice(dev, @"default");
         } else {
-            for (NSDictionary *d in outputDevices()) if ([d[@"uid"] isEqualToString:uid]) { warmDevice([d[@"id"] unsignedIntValue]); break; }
+            for (NSDictionary *d in outputDevices()) if ([d[@"uid"] isEqualToString:uid]) { warmDevice([d[@"id"] unsignedIntValue], uid); break; }
         }
     }
     else if ([cmd isEqualToString:@"devices"]) {
@@ -670,7 +676,10 @@ static void handle(NSString *line) {
         // reads the whole file through once, purely to warm the OS file cache before Play actually needs it;
         // computePeaks() already does exactly that read, its actual result just goes unused here
         NSString *file = c[@"file"];
-        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ computePeaks(file, 10, @0); });
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
+            computePeaks(file, 10, @0);
+            emit(@{ @"evt": @"preloaded", @"file": file });
+        });
     }
     else if ([cmd isEqualToString:@"syncInfo"]) {
         NSMutableArray *items = [NSMutableArray array];

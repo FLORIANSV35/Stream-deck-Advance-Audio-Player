@@ -89,6 +89,18 @@ export function playKey(v: PlayView): string {
   `));
 }
 
+/** Shown in place of a Play key's idle image while its files/outputs are still being prepared (see
+ * PlayAction#prewarm): a filling ring instead of the play triangle, so pressing too early isn't the only
+ * feedback that something is still getting ready. */
+export function loadingKey(o: { label: string; group?: string; progress: number }): string {
+  return uri(frame(`
+    ${title(o.label)}
+    ${ring(o.progress, "b")}
+    ${text(72, 84, 13, C.muted, "Loading…", { weight: 600 })}
+    ${o.group ? text(72, 137, 14, C.muted, clip(o.group, 16), { weight: 500 }) : ""}
+  `));
+}
+
 export function volumeKey(o: { target: string; icon: "up" | "down" | "mute" | "set"; pct: number; muted: boolean }): string {
   const accent = o.muted ? "r" : "g";
   const glyph = {

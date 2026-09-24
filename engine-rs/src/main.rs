@@ -146,6 +146,22 @@ impl Engine {
         let id = c.get("id").and_then(Value::as_str).unwrap_or("").to_string();
         let fade = num(&c, "fade", 0.0);
         match cmd {
+            // Windows/WASAPI doesn't have the slow-device-startup issue the macOS engine's warm() works around
+            // (see mac_devices.rs's own doc comment), so there's nothing to actually do here — just acknowledge
+            // right away, so a Remote/local Play key's loading indicator doesn't sit waiting on it needlessly.
+            "warm" => {
+                if let Some(device) = c.get("device").and_then(Value::as_str) {
+                    emit(json!({"evt": "warmed", "device": device}));
+                }
+            }
+            "preload" => {
+                if let Some(file) = c.get("file").and_then(Value::as_str).map(str::to_string) {
+                    std::thread::spawn(move || {
+                        let _ = audio::load(&file);
+                        emit(json!({"evt": "preloaded", "file": file}));
+                    });
+                }
+            }
             "devices" => {
                 let list: Vec<Value> = voice::list_devices()
                     .into_iter()
@@ -218,13 +234,6 @@ impl Engine {
                         Ok(d) => emit(json!({"evt": "peaks", "req": req, "duration": d.frames as f64 / d.rate, "peaks": audio::peaks(&d, n)})),
                         Err(_) => emit(json!({"evt": "peaks", "req": req, "error": "Unreadable file"})),
                     });
-                }
-            }
-            "preload" => {
-                // reads the whole file through once, purely to warm the OS file cache before Play actually
-                // needs it; the decoded result itself goes unused here, same idea as the macOS engine's preload
-                if let Some(file) = c.get("file").and_then(Value::as_str).map(str::to_string) {
-                    std::thread::spawn(move || { let _ = audio::load(&file); });
                 }
             }
             "syncInfo" => {

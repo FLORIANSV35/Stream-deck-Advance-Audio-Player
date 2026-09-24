@@ -41,6 +41,10 @@ type EngineEvents = {
   ended: [id: string, reason: "finished" | "stopped" | "error", message?: string];
   /** the engine restarted: all running playbacks are lost */
   reset: [];
+  /** a preload()'d file has been read through once (OS file cache now warm for it) */
+  preloaded: [file: string];
+  /** a warm()'d device's silent stream has started */
+  warmed: [device: string];
 };
 
 // macOS: native Objective-C engine (saap-engine); Windows: Rust engine (saap-engine.exe)
@@ -112,6 +116,12 @@ class Engine extends EventEmitter<EngineEvents> {
         break;
       case "ended":
         this.emit("ended", m.id, m.reason, m.message);
+        break;
+      case "preloaded":
+        this.emit("preloaded", m.file);
+        break;
+      case "warmed":
+        this.emit("warmed", m.device);
         break;
     }
   }
