@@ -140,6 +140,12 @@ class Engine extends EventEmitter<EngineEvents> {
     });
   }
 
+  /**
+   * Pre-starts a silent stream on this output device, if not already running. Some audio interfaces take a real
+   * couple of seconds to power up the first time a stream starts on them, and whatever plays during that window is
+   * lost; warming a device well ahead of an actual Play press (see PlayAction) avoids that cutting into real audio.
+   */
+  warm(device: string): void { this.#send({ cmd: "warm", device }); }
   play(cmd: PlayCommand): void { this.#send({ cmd: "play", ...cmd }); }
   /** Starts several tracks at one exact instant (synchronized within a millisecond). */
   playBatch(items: PlayCommand[]): void { this.#send({ cmd: "playBatch", items }); }

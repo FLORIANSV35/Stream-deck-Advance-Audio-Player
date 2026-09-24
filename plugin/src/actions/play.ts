@@ -121,6 +121,21 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     this.#lastView.delete(ev.action.id);
     this.#render(ev.action.id);
     this.#editor.broadcast(this.#tabs());
+    this.#warmOutputs(ev.payload.settings);
+  }
+
+  /**
+   * Pre-starts every output device this key's tracks are configured to use, so the very first Play press does
+   * not pay a device's own startup latency (see Engine.warm). Run as soon as the key's settings are known — well
+   * before a press is likely — and again whenever they change, in case an output was just picked.
+   */
+  #warmOutputs(s: PlaySettings): void {
+    const devices = new Set<string>();
+    for (let n = 1; n <= MAX_TRACKS; n++) {
+      const t = trackSettings(s, n);
+      if (t.file) for (const out of trackOutputs(t)) devices.add(out.device);
+    }
+    for (const device of devices) engine.warm(device);
   }
 
   override onWillDisappear(ev: WillDisappearEvent<PlaySettings>): void {
@@ -152,6 +167,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     // the user is typing there
     const known = JSON.stringify(this.#settings.get(id));
     this.#settings.set(id, settings);
+    if (JSON.stringify(settings) !== known) this.#warmOutputs(settings);
     if (origin || JSON.stringify(settings) !== known) {
       this.#editor.push(id, settings, origin);
       this.#editor.broadcast(this.#tabs());

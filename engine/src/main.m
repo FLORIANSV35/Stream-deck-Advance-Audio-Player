@@ -67,12 +67,41 @@ static NSArray<NSDictionary *> *outputDevices(void) {
     return res;
 }
 
-static int defaultDeviceChannels(void) {
+static AudioDeviceID defaultOutputDevice(void) {
     AudioObjectPropertyAddress a = addr(kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyScopeGlobal);
     AudioDeviceID dev = 0;
     UInt32 size = sizeof(dev);
-    if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &a, 0, NULL, &size, &dev) != noErr) return 2;
-    return MAX(1, outputChannelCount(dev));
+    AudioObjectGetPropertyData(kAudioObjectSystemObject, &a, 0, NULL, &size, &dev);
+    return dev;
+}
+
+static int defaultDeviceChannels(void) {
+    AudioDeviceID dev = defaultOutputDevice();
+    return dev ? MAX(1, outputChannelCount(dev)) : 2;
+}
+
+#pragma mark - Device warm-up
+
+// Some audio interfaces (reported: a MOTU 8pre over USB) take a real couple of seconds to power up their
+// output stream the first time CoreAudio starts it — AVAudioEngine's -startAndReturnError: returns as soon
+// as the HAL stream is *requested*, well before the hardware is actually delivering audio, so whatever gets
+// rendered during that spin-up is simply never heard. Once a device's stream has been running for a while,
+// starting a *second* one on it (a new engine, same device) is instant, because the hardware is already
+// live — which is exactly what starting a device once, ahead of time, and leaving it running silently
+// achieves for every real playback that follows.
+static NSMutableDictionary<NSNumber *, AVAudioEngine *> *warmEngines;
+
+// Idempotent: does nothing if this device is already warm. Best-effort — a device that fails to start here
+// will just be attempted again by the real playback engine, with the original (unfixed) latency.
+static void warmDevice(AudioDeviceID deviceID) {
+    if (!warmEngines) warmEngines = [NSMutableDictionary dictionary];
+    NSNumber *key = @(deviceID);
+    if (warmEngines[key]) return;
+    AVAudioEngine *engine = [AVAudioEngine new];
+    NSError *e = nil;
+    if (![engine.outputNode.AUAudioUnit setDeviceID:deviceID error:&e]) return;
+    (void)engine.mainMixerNode; // pulls in a silent path from mixer to output; nothing ever feeds it
+    if ([engine startAndReturnError:&e]) warmEngines[key] = engine;
 }
 
 #pragma mark - Instance
@@ -191,7 +220,9 @@ static double num(NSDictionary *c, NSString *k, double d) {
         NSDictionary *found = nil;
         for (NSDictionary *d in outputDevices()) if ([d[@"uid"] isEqualToString:uid]) { found = d; break; }
         if (!found) { *err = [NSString stringWithFormat:@"Device not found: %@", uid]; return nil; }
-        if (![out.AUAudioUnit setDeviceID:[found[@"id"] unsignedIntValue] error:&e]) {
+        AudioDeviceID devID = [found[@"id"] unsignedIntValue];
+        warmDevice(devID); // no-op if already warm; otherwise this playback pays the warm-up cost instead
+        if (![out.AUAudioUnit setDeviceID:devID error:&e]) {
             *err = [NSString stringWithFormat:@"Cannot use %@", found[@"name"]]; return nil;
         }
         devChannels = [found[@"channels"] intValue];
@@ -602,7 +633,16 @@ static void handle(NSString *line) {
     NSString *cmd = c[@"cmd"], *ident = c[@"id"];
     SAInstance *inst = ident ? instances[ident] : nil;
     double fade = num(c, @"fade", 0);
-    if ([cmd isEqualToString:@"devices"]) {
+    if ([cmd isEqualToString:@"warm"]) {
+        NSString *uid = c[@"device"];
+        if ([uid isEqualToString:@"default"]) {
+            AudioDeviceID dev = defaultOutputDevice();
+            if (dev) warmDevice(dev);
+        } else {
+            for (NSDictionary *d in outputDevices()) if ([d[@"uid"] isEqualToString:uid]) { warmDevice([d[@"id"] unsignedIntValue]); break; }
+        }
+    }
+    else if ([cmd isEqualToString:@"devices"]) {
         NSMutableArray *list = [NSMutableArray array];
         for (NSDictionary *d in outputDevices()) [list addObject:@{ @"uid": d[@"uid"], @"name": d[@"name"], @"channels": d[@"channels"] }];
         emit(@{ @"evt": @"devices", @"devices": list });
