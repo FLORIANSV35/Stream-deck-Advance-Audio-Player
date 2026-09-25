@@ -55,7 +55,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   #settings = new Map<string, PlaySettings>();
   #lastView = new Map<string, string>();
 
-  /** Every "file:<path>" / "device:<uid>" token confirmed ready this session (see #prewarm) — once warm,
+  /** Every "file:<path>" token confirmed ready this session (see #prewarm) — once warm,
    * treated as staying warm, so a later settings change doesn't re-show the loading bar or redo the work. */
   #everWarmed = new Set<string>();
   /** When each token was last asked of the engine (see #request). */
@@ -122,12 +122,11 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       }
     });
     engine.on("preloaded", (file) => this.#markWarm(`file:${file}`));
-    engine.on("warmed", (device) => this.#markWarm(`device:${device}`));
     engine.on("reset", () => {
       const ctxs = new Set([...playbacks.keys()].map(ctxOf));
       playbacks.clear();
       ctxs.forEach((c) => this.#render(c));
-      // the restarted engine has lost every warm device: nothing counts as ready any more. It comes back up
+      // the restarted engine starts with a cold cache of nothing we know about. It comes back up
       // about a second later, so prepare everything again once it can hear us
       this.#everWarmed.clear();
       this.#requested.clear();
@@ -150,12 +149,11 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   }
 
   /**
-   * Prepares everything a Play press will need, so the first press does not pay for it: pre-starts every output
-   * device the key's tracks use (a device's own startup latency, see Engine.warm) and has the OS file cache
-   * warm for every track's file (a cold-disk read otherwise cutting into the very start of playback, see
-   * Engine.preload). Run as soon as the key's settings are known — well before a press is likely — and again
-   * whenever they change, in case a file or output was just picked. Tokens already confirmed ready earlier this
-   * session are skipped (no re-work, and no re-showing the loading bar for something that hasn't changed).
+   * Has the OS file cache warm for every track's file, so the first press does not pay for a cold-disk read
+   * (see Engine.preload). Run as soon as the key's settings are known — well before a press is likely — and again
+   * whenever they change, in case a file was just picked. Files already confirmed ready earlier this session are
+   * skipped (no re-work, and no re-showing the loading bar for something that hasn't changed). Output devices are
+   * deliberately not touched: keeping them "awake" made a MOTU's two CoreAudio devices fight and stop playback.
    */
   #prewarm(id: string, s: PlaySettings): void {
     const remaining = new Set([...this.#tokensOf(s)].filter((tok) => !this.#everWarmed.has(tok)));
@@ -166,54 +164,30 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     this.#pending.set(id, { total: remaining.size, remaining });
     this.#renderLoading(id);
     for (const tok of remaining) this.#request(tok);
-    // safety net: a "warmed"/"preloaded" event can be lost (e.g. Windows has no device-warming to report on),
+    // safety net: a "preloaded" event can be lost,
     // so the loading bar must never get stuck — clear it unconditionally after a few seconds regardless
     setTimeout(() => this.#clearPending(id), 5000);
     this.#maybeRescanProfiles();
   }
 
-  /** The "file:<path>" / "device:<uid>" tokens a key's tracks need ready. */
+  /** The "file:<path>" tokens a key's tracks need ready. */
   #tokensOf(s: PlaySettings): Set<string> {
     const tokens = new Set<string>();
     for (let n = 1; n <= MAX_TRACKS; n++) {
       const t = trackSettings(s, n);
       if (!t.file) continue;
-      if (this.warmDevices) for (const out of trackOutputs(t)) tokens.add(`device:${out.device}`);
       const path = resolvePath(t.file as string);
       if (path) tokens.add(`file:${path}`);
     }
     return tokens;
   }
 
-  /** Asks the engine to prepare one token, unless that was already asked very recently (its answer is in flight). */
+  /** Asks the engine to preload one file, unless that was already asked very recently (its answer is in flight). */
   #request(tok: string): void {
     const at = this.#requested.get(tok);
     if (at !== undefined && Date.now() - at < 15_000) return;
     this.#requested.set(tok, Date.now());
-    if (tok.startsWith("file:")) engine.preload(tok.slice("file:".length));
-    else engine.warm(tok.slice("device:".length));
-  }
-
-  /**
-   * Whether to also keep every output device awake with a silent stream (see Engine.warm). Off by default: it
-   * only helps an interface that's slow to start, and one that shows up as several CoreAudio devices (a MOTU
-   * with both its own driver and Apple's) ends up with its streams fighting — playback then stops with
-   * "hardware not running" and won't restart.
-   */
-  get warmDevices(): boolean {
-    return mixer.pref("warmDevices", false);
-  }
-
-  setWarmDevices(on: boolean): void {
-    mixer.setPref("warmDevices", on);
-    if (on) {
-      this.prewarmAllProfiles();
-      for (const [id, s] of this.#settings) if (this.#keys.has(id)) this.#prewarm(id, s);
-    } else {
-      engine.unwarm();
-      for (const tok of [...this.#everWarmed]) if (tok.startsWith("device:")) this.#everWarmed.delete(tok);
-      this.#requested.clear();
-    }
+    engine.preload(tok.slice("file:".length));
   }
 
   #lastProfileScan = 0;
@@ -236,7 +210,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     if (Date.now() - this.#lastProfileScan > 30_000) this.prewarmAllProfiles();
   }
 
-  /** A file/device is confirmed ready (see the engine.on("preloaded"/"warmed") subscriptions above). */
+  /** A file is confirmed ready (see the engine.on("preloaded") subscription above). */
   #markWarm(token: string): void {
     this.#everWarmed.add(token);
     for (const [ctx, pend] of this.#pending) {
@@ -342,11 +316,6 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       await reply(error ? { event: "updateStatus", state: "error", message: error } : { event: "updateStatus", state: "opened" });
     } else if (event === "openUpdatePage") {
       await updater.openPage();
-    } else if (event === "getWarm") {
-      await reply({ event: "warm", enabled: this.warmDevices });
-    } else if (event === "setWarmDevices") {
-      this.setWarmDevices(!!(payload as { value?: unknown }).value);
-      await reply({ event: "warm", enabled: this.warmDevices });
     } else if (event === "getNetwork") {
       await reply({ event: "network", ...networkControl.state() });
     } else if (event === "setNetworkEnabled") {

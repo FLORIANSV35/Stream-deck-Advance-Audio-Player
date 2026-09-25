@@ -21,7 +21,7 @@ static void emit(NSDictionary *obj) {
 }
 
 // Forwarded to the plugin's own log file (com.saap.audio.sdPlugin/logs/), for diagnostics that don't fit the
-// normal per-playback error path — notably warmDevice() failures, which are otherwise silent.
+// normal per-playback error path.
 static void logMsg(NSString *fmt, ...) {
     va_list args;
     va_start(args, fmt);
@@ -88,44 +88,6 @@ static AudioDeviceID defaultOutputDevice(void) {
 static int defaultDeviceChannels(void) {
     AudioDeviceID dev = defaultOutputDevice();
     return dev ? MAX(1, outputChannelCount(dev)) : 2;
-}
-
-#pragma mark - Device warm-up
-
-// Some audio interfaces (reported: a MOTU 8pre over USB) take a real couple of seconds to power up their
-// output stream the first time CoreAudio starts it — AVAudioEngine's -startAndReturnError: returns as soon
-// as the HAL stream is *requested*, well before the hardware is actually delivering audio, so whatever gets
-// rendered during that spin-up is simply never heard. Once a device's stream has been running for a while,
-// starting a *second* one on it (a new engine, same device) is instant, because the hardware is already
-// live — which is exactly what starting a device once, ahead of time, and leaving it running silently
-// achieves for every real playback that follows.
-static NSMutableDictionary<NSNumber *, AVAudioEngine *> *warmEngines;
-
-// Idempotent: does nothing but report done if this device is already warm. Best-effort — a device that fails
-// to start here will just be attempted again by the real playback engine, with the original (unfixed) latency,
-// and no "warmed" event (the plugin's loading indicator for it clears itself after a timeout regardless).
-// `uid` is whatever the caller (and so the plugin) identifies this device by — "default" included — so the
-// "warmed" event correlates back to the right pending entry regardless of which AudioDeviceID it resolved to.
-static void warmDevice(AudioDeviceID deviceID, NSString *uid) {
-    if (!warmEngines) warmEngines = [NSMutableDictionary dictionary];
-    NSNumber *key = @(deviceID);
-    if (warmEngines[key]) { emit(@{ @"evt": @"warmed", @"device": uid }); return; }
-    double t0 = [NSProcessInfo processInfo].systemUptime;
-    AVAudioEngine *engine = [AVAudioEngine new];
-    NSError *e = nil;
-    if (![engine.outputNode.AUAudioUnit setDeviceID:deviceID error:&e]) {
-        logMsg(@"warm: setDeviceID failed for %@ (id %u): %@", uid, (unsigned)deviceID, e.localizedDescription ?: @"unknown error");
-        return;
-    }
-    (void)engine.mainMixerNode; // pulls in a silent path from mixer to output; nothing ever feeds it
-    if ([engine startAndReturnError:&e]) {
-        warmEngines[key] = engine;
-        double ms = ([NSProcessInfo processInfo].systemUptime - t0) * 1000;
-        logMsg(@"warm: %@ ready in %.0f ms", uid, ms);
-        emit(@{ @"evt": @"warmed", @"device": uid });
-    } else {
-        logMsg(@"warm: engine start failed for %@: %@", uid, e.localizedDescription ?: @"unknown error");
-    }
 }
 
 #pragma mark - Instance
@@ -663,20 +625,7 @@ static void handle(NSString *line) {
     NSString *cmd = c[@"cmd"], *ident = c[@"id"];
     SAInstance *inst = ident ? instances[ident] : nil;
     double fade = num(c, @"fade", 0);
-    if ([cmd isEqualToString:@"unwarm"]) {
-        for (AVAudioEngine *e in warmEngines.allValues) [e stop];
-        [warmEngines removeAllObjects];
-    }
-    else if ([cmd isEqualToString:@"warm"]) {
-        NSString *uid = c[@"device"];
-        if ([uid isEqualToString:@"default"]) {
-            AudioDeviceID dev = defaultOutputDevice();
-            if (dev) warmDevice(dev, @"default");
-        } else {
-            for (NSDictionary *d in outputDevices()) if ([d[@"uid"] isEqualToString:uid]) { warmDevice([d[@"id"] unsignedIntValue], uid); break; }
-        }
-    }
-    else if ([cmd isEqualToString:@"devices"]) {
+    if ([cmd isEqualToString:@"devices"]) {
         NSMutableArray *list = [NSMutableArray array];
         for (NSDictionary *d in outputDevices()) [list addObject:@{ @"uid": d[@"uid"], @"name": d[@"name"], @"channels": d[@"channels"] }];
         emit(@{ @"evt": @"devices", @"devices": list });
