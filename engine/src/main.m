@@ -20,6 +20,16 @@ static void emit(NSDictionary *obj) {
     [outLock unlock];
 }
 
+// Forwarded to the plugin's own log file (com.saap.audio.sdPlugin/logs/), for diagnostics that don't fit the
+// normal per-playback error path — notably warmDevice() failures, which are otherwise silent.
+static void logMsg(NSString *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    NSString *message = [[NSString alloc] initWithFormat:fmt arguments:args];
+    va_end(args);
+    emit(@{ @"evt": @"log", @"message": message });
+}
+
 #pragma mark - Devices
 
 static AudioObjectPropertyAddress addr(AudioObjectPropertySelector sel, AudioObjectPropertyScope scope) {
@@ -100,13 +110,21 @@ static void warmDevice(AudioDeviceID deviceID, NSString *uid) {
     if (!warmEngines) warmEngines = [NSMutableDictionary dictionary];
     NSNumber *key = @(deviceID);
     if (warmEngines[key]) { emit(@{ @"evt": @"warmed", @"device": uid }); return; }
+    double t0 = [NSProcessInfo processInfo].systemUptime;
     AVAudioEngine *engine = [AVAudioEngine new];
     NSError *e = nil;
-    if (![engine.outputNode.AUAudioUnit setDeviceID:deviceID error:&e]) return;
+    if (![engine.outputNode.AUAudioUnit setDeviceID:deviceID error:&e]) {
+        logMsg(@"warm: setDeviceID failed for %@ (id %u): %@", uid, (unsigned)deviceID, e.localizedDescription ?: @"unknown error");
+        return;
+    }
     (void)engine.mainMixerNode; // pulls in a silent path from mixer to output; nothing ever feeds it
     if ([engine startAndReturnError:&e]) {
         warmEngines[key] = engine;
+        double ms = ([NSProcessInfo processInfo].systemUptime - t0) * 1000;
+        logMsg(@"warm: %@ ready in %.0f ms", uid, ms);
         emit(@{ @"evt": @"warmed", @"device": uid });
+    } else {
+        logMsg(@"warm: engine start failed for %@: %@", uid, e.localizedDescription ?: @"unknown error");
     }
 }
 
@@ -222,6 +240,7 @@ static double num(NSDictionary *c, NSString *k, double d) {
     // Output device
     NSString *uid = c[@"device"] ?: @"default";
     int devChannels;
+    double devT0 = [NSProcessInfo processInfo].systemUptime;
     if (![uid isEqualToString:@"default"]) {
         NSDictionary *found = nil;
         for (NSDictionary *d in outputDevices()) if ([d[@"uid"] isEqualToString:uid]) { found = d; break; }
@@ -229,8 +248,11 @@ static double num(NSDictionary *c, NSString *k, double d) {
         AudioDeviceID devID = [found[@"id"] unsignedIntValue];
         warmDevice(devID, uid); // no-op if already warm; otherwise this playback pays the warm-up cost instead
         if (![out.AUAudioUnit setDeviceID:devID error:&e]) {
-            *err = [NSString stringWithFormat:@"Cannot use %@", found[@"name"]]; return nil;
+            logMsg(@"play: setDeviceID failed for %@ (id %u) after %.0f ms: %@",
+                   uid, (unsigned)devID, ([NSProcessInfo processInfo].systemUptime - devT0) * 1000, e.localizedDescription ?: @"unknown error");
+            *err = [NSString stringWithFormat:@"Cannot use %@: %@", found[@"name"], e.localizedDescription ?: @"unknown error"]; return nil;
         }
+        logMsg(@"play: setDeviceID for %@ took %.0f ms", uid, ([NSProcessInfo processInfo].systemUptime - devT0) * 1000);
         devChannels = [found[@"channels"] intValue];
     } else {
         devChannels = defaultDeviceChannels();
@@ -274,9 +296,12 @@ static double num(NSDictionary *c, NSString *k, double d) {
         _nextTo = [self scheduleChunkFrom:_nextFrom];
         _hasNext = YES;
     }
+    double startT0 = [NSProcessInfo processInfo].systemUptime;
     if (![_engine startAndReturnError:&e]) {
         *err = [NSString stringWithFormat:@"Cannot start audio: %@", e.localizedDescription]; return nil;
     }
+    logMsg(@"play: %@ engine start took %.0f ms (total setup %.0f ms) for %@",
+           uid, ([NSProcessInfo processInfo].systemUptime - startT0) * 1000, ([NSProcessInfo processInfo].systemUptime - devT0) * 1000, _ident);
     return self;
 }
 

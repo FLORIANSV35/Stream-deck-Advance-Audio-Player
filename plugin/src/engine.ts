@@ -123,6 +123,9 @@ class Engine extends EventEmitter<EngineEvents> {
       case "warmed":
         this.emit("warmed", m.device);
         break;
+      case "log":
+        streamDeck.logger.info(`[engine] ${m.message}`);
+        break;
     }
   }
 
