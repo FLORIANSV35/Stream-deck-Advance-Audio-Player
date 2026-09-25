@@ -90,6 +90,11 @@ def play():
         item("", '<label class="updcheck"><input type="checkbox" id="update-enabled" checked> Check GitHub for new versions</label>') +
         item("Version", '<span id="update-current" class="updcur">…</span>'),
         cls="plain")
+    body += '  <h2 class="section">Performance</h2>\n'
+    body += card("⚡", "Performance",
+        item("", '<label class="updcheck"><input type="checkbox" id="warm-enabled"> Keep output devices awake with a silent stream</label>'),
+        cls="plain")
+    body += '  <sdpi-note>Files are always preloaded. Keeping devices awake can help an audio interface that is slow to start, but on some (e.g. a MOTU that shows up as two devices) it makes playback stop — leave it off unless you need it.</sdpi-note>\n'
     body += '  <h2 class="section">Network control</h2>\n'
     body += card("⌁", "Network control",
         item("", '<label class="updcheck"><input type="checkbox" id="net-enabled"> Let other computers on this network trigger sounds here</label>') +
@@ -98,7 +103,7 @@ def play():
         item("Status", '<span id="net-status" class="updcur">…</span>'),
         cls="plain")
     body += '  <sdpi-note>On the other computer, add a <b>Remote Trigger</b> key and enter this computer\'s address, the port above, and the same passphrase.</sdpi-note>\n'
-    return page("Play sounds", "Up to 6 tracks, synchronized to the millisecond", body, ["waveform.js", "outputs.js", "links.js", "wide.js", "update.js", "network.js"])
+    return page("Play sounds", "Up to 6 tracks, synchronized to the millisecond", body, ["waveform.js", "outputs.js", "links.js", "wide.js", "update.js", "network.js", "perf.js"])
 
 def volume():
     body = '  <h2 class="section">Setting</h2>\n' + card("♪", "Live volume",

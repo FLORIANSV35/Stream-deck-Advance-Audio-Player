@@ -178,7 +178,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     for (let n = 1; n <= MAX_TRACKS; n++) {
       const t = trackSettings(s, n);
       if (!t.file) continue;
-      for (const out of trackOutputs(t)) tokens.add(`device:${out.device}`);
+      if (this.warmDevices) for (const out of trackOutputs(t)) tokens.add(`device:${out.device}`);
       const path = resolvePath(t.file as string);
       if (path) tokens.add(`file:${path}`);
     }
@@ -192,6 +192,28 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     this.#requested.set(tok, Date.now());
     if (tok.startsWith("file:")) engine.preload(tok.slice("file:".length));
     else engine.warm(tok.slice("device:".length));
+  }
+
+  /**
+   * Whether to also keep every output device awake with a silent stream (see Engine.warm). Off by default: it
+   * only helps an interface that's slow to start, and one that shows up as several CoreAudio devices (a MOTU
+   * with both its own driver and Apple's) ends up with its streams fighting — playback then stops with
+   * "hardware not running" and won't restart.
+   */
+  get warmDevices(): boolean {
+    return mixer.pref("warmDevices", false);
+  }
+
+  setWarmDevices(on: boolean): void {
+    mixer.setPref("warmDevices", on);
+    if (on) {
+      this.prewarmAllProfiles();
+      for (const [id, s] of this.#settings) if (this.#keys.has(id)) this.#prewarm(id, s);
+    } else {
+      engine.unwarm();
+      for (const tok of [...this.#everWarmed]) if (tok.startsWith("device:")) this.#everWarmed.delete(tok);
+      this.#requested.clear();
+    }
   }
 
   #lastProfileScan = 0;
@@ -320,6 +342,11 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       await reply(error ? { event: "updateStatus", state: "error", message: error } : { event: "updateStatus", state: "opened" });
     } else if (event === "openUpdatePage") {
       await updater.openPage();
+    } else if (event === "getWarm") {
+      await reply({ event: "warm", enabled: this.warmDevices });
+    } else if (event === "setWarmDevices") {
+      this.setWarmDevices(!!(payload as { value?: unknown }).value);
+      await reply({ event: "warm", enabled: this.warmDevices });
     } else if (event === "getNetwork") {
       await reply({ event: "network", ...networkControl.state() });
     } else if (event === "setNetworkEnabled") {

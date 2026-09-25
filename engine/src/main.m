@@ -246,7 +246,6 @@ static double num(NSDictionary *c, NSString *k, double d) {
         for (NSDictionary *d in outputDevices()) if ([d[@"uid"] isEqualToString:uid]) { found = d; break; }
         if (!found) { *err = [NSString stringWithFormat:@"Device not found: %@", uid]; return nil; }
         AudioDeviceID devID = [found[@"id"] unsignedIntValue];
-        warmDevice(devID, uid); // no-op if already warm; otherwise this playback pays the warm-up cost instead
         if (![out.AUAudioUnit setDeviceID:devID error:&e]) {
             logMsg(@"play: setDeviceID failed for %@ (id %u) after %.0f ms: %@",
                    uid, (unsigned)devID, ([NSProcessInfo processInfo].systemUptime - devT0) * 1000, e.localizedDescription ?: @"unknown error");
@@ -664,7 +663,11 @@ static void handle(NSString *line) {
     NSString *cmd = c[@"cmd"], *ident = c[@"id"];
     SAInstance *inst = ident ? instances[ident] : nil;
     double fade = num(c, @"fade", 0);
-    if ([cmd isEqualToString:@"warm"]) {
+    if ([cmd isEqualToString:@"unwarm"]) {
+        for (AVAudioEngine *e in warmEngines.allValues) [e stop];
+        [warmEngines removeAllObjects];
+    }
+    else if ([cmd isEqualToString:@"warm"]) {
         NSString *uid = c[@"device"];
         if ([uid isEqualToString:@"default"]) {
             AudioDeviceID dev = defaultOutputDevice();
