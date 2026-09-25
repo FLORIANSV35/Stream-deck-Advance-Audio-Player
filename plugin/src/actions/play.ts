@@ -15,13 +15,14 @@ import streamDeck, {
 import type { JsonValue } from "@elgato/utils";
 import { updater } from "../updater.js";
 import { EditorServer } from "../editor-server.js";
+import { networkControl } from "../network-server.js";
 import { engine, type PeaksResult, type PlayCommand } from "../engine.js";
 import { pickAudioFile } from "../filepicker.js";
 import { isGroupsEvent, normGroup, replyToInspector, sendGroups } from "../groups.js";
 import { mixer } from "../mixer.js";
 import { outputItems, trackOutputs } from "../outputs.js";
 import { playbacks, gainFor, inGroup, ctxOf, type Playback } from "../registry.js";
-import { fmtTime, playKey, type PlayView } from "../render.js";
+import { fmtTime, loadingKey, playKey, type PlayView } from "../render.js";
 import { MAX_TRACKS, seconds, trackSettings, type PlaySettings } from "../settings.js";
 
 /**
@@ -53,8 +54,15 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   #settings = new Map<string, PlaySettings>();
   #lastView = new Map<string, string>();
 
-  /** The Play keys currently showing on a deck, in reading order: the editor's tabs. */
-  #tabs(): object {
+  /** Every "file:<path>" / "device:<uid>" token confirmed ready this session (see #prewarm) — once warm,
+   * treated as staying warm, so a later settings change doesn't re-show the loading bar or redo the work. */
+  #everWarmed = new Set<string>();
+  /** Per key still showing its loading bar: how many of its tokens are still outstanding, out of how many. */
+  #pending = new Map<string, { total: number; remaining: Set<string> }>();
+
+  /** The Play keys currently showing on a deck, in reading order — used for the editor's tabs and for a
+   * Remote Trigger key on another computer to list what it can start (see network-server.ts). */
+  listKeys(): { ctx: string; label: string; group: string }[] {
     const rows = [...this.#keys].map(([ctx, key]) => {
       const s = this.#settings.get(ctx) ?? {};
       const first = s.file as string | undefined;
@@ -64,7 +72,11 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       };
     });
     rows.sort((a, b) => a.device.localeCompare(b.device) || a.row - b.row || a.column - b.column);
-    return { event: "keys", items: rows.map(({ ctx, label, group }) => ({ ctx, label, group })) };
+    return rows.map(({ ctx, label, group }) => ({ ctx, label, group }));
+  }
+
+  #tabs(): object {
+    return { event: "keys", items: this.listKeys() };
   }
 
   /** Large settings page opened in the browser (see EditorServer). */
@@ -106,6 +118,8 @@ export class PlayAction extends SingletonAction<PlaySettings> {
         void this.#keys.get(ctxOf(id))?.showAlert();
       }
     });
+    engine.on("preloaded", (file) => this.#markWarm(`file:${file}`));
+    engine.on("warmed", (device) => this.#markWarm(`device:${device}`));
     engine.on("reset", () => {
       const ctxs = new Set([...playbacks.keys()].map(ctxOf));
       playbacks.clear();
@@ -119,8 +133,69 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     this.#settings.set(ev.action.id, ev.payload.settings);
     mixer.addGroup(normGroup(ev.payload.settings.group));
     this.#lastView.delete(ev.action.id);
+    this.#prewarm(ev.action.id, ev.payload.settings);
     this.#render(ev.action.id);
     this.#editor.broadcast(this.#tabs());
+  }
+
+  /**
+   * Prepares everything a Play press will need, so the first press does not pay for it: pre-starts every output
+   * device the key's tracks use (a device's own startup latency, see Engine.warm) and has the OS file cache
+   * warm for every track's file (a cold-disk read otherwise cutting into the very start of playback, see
+   * Engine.preload). Run as soon as the key's settings are known — well before a press is likely — and again
+   * whenever they change, in case a file or output was just picked. Tokens already confirmed ready earlier this
+   * session are skipped (no re-work, and no re-showing the loading bar for something that hasn't changed).
+   */
+  #prewarm(id: string, s: PlaySettings): void {
+    const tokens = new Set<string>();
+    for (let n = 1; n <= MAX_TRACKS; n++) {
+      const t = trackSettings(s, n);
+      if (!t.file) continue;
+      for (const out of trackOutputs(t)) tokens.add(`device:${out.device}`);
+      const path = resolvePath(t.file as string);
+      if (path) tokens.add(`file:${path}`);
+    }
+    const remaining = new Set([...tokens].filter((tok) => !this.#everWarmed.has(tok)));
+    if (remaining.size === 0) {
+      this.#pending.delete(id);
+      return;
+    }
+    this.#pending.set(id, { total: remaining.size, remaining });
+    this.#renderLoading(id);
+    for (const tok of remaining) {
+      if (tok.startsWith("file:")) engine.preload(tok.slice("file:".length));
+      else engine.warm(tok.slice("device:".length));
+    }
+    // safety net: a "warmed"/"preloaded" event can be lost (e.g. Windows has no device-warming to report on),
+    // so the loading bar must never get stuck — clear it unconditionally after a few seconds regardless
+    setTimeout(() => this.#clearPending(id), 5000);
+  }
+
+  /** A file/device is confirmed ready (see the engine.on("preloaded"/"warmed") subscriptions above). */
+  #markWarm(token: string): void {
+    this.#everWarmed.add(token);
+    for (const [ctx, pend] of this.#pending) {
+      if (!pend.remaining.delete(token)) continue;
+      if (pend.remaining.size === 0) this.#clearPending(ctx);
+      else this.#renderLoading(ctx);
+    }
+  }
+
+  #clearPending(id: string): void {
+    if (!this.#pending.delete(id)) return;
+    this.#lastView.delete(id);
+    this.#render(id);
+  }
+
+  #renderLoading(id: string): void {
+    const key = this.#keys.get(id);
+    const pend = this.#pending.get(id);
+    if (!key || !pend) return;
+    const s = this.#settings.get(id) ?? {};
+    const first = s.file as string | undefined;
+    const label = s.label || (first ? basename(first, extname(first)) : "Choose a file");
+    const progress = (pend.total - pend.remaining.size) / pend.total;
+    void key.setImage(loadingKey({ label, group: normGroup(s.group), progress }));
   }
 
   override onWillDisappear(ev: WillDisappearEvent<PlaySettings>): void {
@@ -152,6 +227,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     // the user is typing there
     const known = JSON.stringify(this.#settings.get(id));
     this.#settings.set(id, settings);
+    if (JSON.stringify(settings) !== known) this.#prewarm(id, settings);
     if (origin || JSON.stringify(settings) !== known) {
       this.#editor.push(id, settings, origin);
       this.#editor.broadcast(this.#tabs());
@@ -201,6 +277,17 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       await reply(error ? { event: "updateStatus", state: "error", message: error } : { event: "updateStatus", state: "opened" });
     } else if (event === "openUpdatePage") {
       await updater.openPage();
+    } else if (event === "getNetwork") {
+      await reply({ event: "network", ...networkControl.state() });
+    } else if (event === "setNetworkEnabled") {
+      networkControl.setEnabled(!!(payload as { value?: unknown }).value);
+      await reply({ event: "network", ...networkControl.state() });
+    } else if (event === "setNetworkKey") {
+      networkControl.setKey(String((payload as { value?: unknown }).value ?? ""));
+      await reply({ event: "network", ...networkControl.state() });
+    } else if (event === "setNetworkPort") {
+      networkControl.setPort(Number((payload as { value?: unknown }).value) || 0);
+      await reply({ event: "network", ...networkControl.state() });
     } else if (event === "getKeys") {
       await reply(this.#tabs());
     } else if (event === "pickFile") {
@@ -242,9 +329,21 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   }
 
   override onKeyDown(ev: KeyDownEvent<PlaySettings>): void {
-    const id = ev.action.id;
-    const s = ev.payload.settings;
-    this.#settings.set(id, s);
+    this.#settings.set(ev.action.id, ev.payload.settings);
+    this.#press(ev.action.id, ev.action);
+  }
+
+  /** Same effect as physically pressing this key — used by a network Remote Trigger (see network-server.ts).
+   * Returns false if the key is not currently known (not showing on any deck). */
+  triggerRemote(ctx: string): boolean {
+    const key = this.#keys.get(ctx);
+    if (!key) return false;
+    this.#press(ctx, key);
+    return true;
+  }
+
+  #press(id: string, key: KeyAction<PlaySettings>): void {
+    const s = this.#settings.get(id) ?? {};
     const current = tracksOf(id);
 
     if (current.length > 0 && s.mode !== "restart") {
@@ -256,7 +355,7 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       }
       return;
     }
-    this.#start(id, s, ev.action);
+    this.#start(id, s, key);
   }
 
   #start(ctx: string, s: PlaySettings, key: { showAlert(): Promise<void> }): void {
@@ -304,33 +403,44 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     this.#render(ctx);
   }
 
-  #render(id: string): void {
-    const key = this.#keys.get(id);
-    if (!key) return;
+  /** What the key currently shows — also used by a Remote Trigger key on another computer to mirror this key's
+   * countdown and progress ring (see network-server.ts's /v1/status). */
+  viewOf(id: string): PlayView | undefined {
+    if (!this.#keys.has(id)) return undefined;
     const s = this.#settings.get(id) ?? {};
     const first = s.file as string | undefined;
     const label = s.label || (first ? basename(first, extname(first)) : "Choose a file");
     const active = tracksOf(id);
     const configured = Array.from({ length: MAX_TRACKS }, (_, i) => trackSettings(s, i + 1)).filter((t) => t.file).length;
     const remaining = s.countdown !== false;
-    let view: PlayView;
     if (active.length === 0) {
-      view = { label, group: normGroup(s.group), state: "idle", tracks: configured, loop: !!s.loop };
-    } else {
-      // the display follows the longest track (non-looping if possible)
-      const measured = active.filter((p) => p.dur > 0);
-      // once a track is exiting its loop, it behaves like a finite track again (an end is now in sight)
-      const finite = measured.filter((p) => !p.settings.loop || p.exiting);
-      const ref = (finite.length ? finite : measured).sort((a, b) => b.dur - b.pos - (a.dur - a.pos))[0];
-      const looping = !!ref?.settings.loop && !ref?.exiting;
-      const showRemaining = remaining && !looping;
-      view = {
-        label, group: normGroup(s.group), tracks: configured, loop: looping, exiting: !!ref?.exiting,
-        state: active.every((p) => p.state === "paused") ? "paused" : "playing",
-        time: ref ? (showRemaining ? "-" : "") + fmtTime(showRemaining ? ref.dur - ref.pos : ref.pos) : "…",
-        progress: ref ? ref.pos / ref.dur : 0,
-      };
+      return { label, group: normGroup(s.group), state: "idle", tracks: configured, loop: !!s.loop };
     }
+    // the display follows the longest track (non-looping if possible)
+    const measured = active.filter((p) => p.dur > 0);
+    // once a track is exiting its loop, it behaves like a finite track again (an end is now in sight)
+    const finite = measured.filter((p) => !p.settings.loop || p.exiting);
+    const ref = (finite.length ? finite : measured).sort((a, b) => b.dur - b.pos - (a.dur - a.pos))[0];
+    const looping = !!ref?.settings.loop && !ref?.exiting;
+    const showRemaining = remaining && !looping;
+    return {
+      label, group: normGroup(s.group), tracks: configured, loop: looping, exiting: !!ref?.exiting,
+      state: active.every((p) => p.state === "paused") ? "paused" : "playing",
+      time: ref ? (showRemaining ? "-" : "") + fmtTime(showRemaining ? ref.dur - ref.pos : ref.pos) : "…",
+      progress: ref ? ref.pos / ref.dur : 0,
+    };
+  }
+
+  #render(id: string): void {
+    const key = this.#keys.get(id);
+    if (this.#pending.has(id)) {
+      // still loading: leave the loading bar up, unless there's now something to actually show (the user
+      // didn't wait, or a track this key doesn't even own started) — real playback state wins either way
+      if (tracksOf(id).length === 0) return;
+      this.#pending.delete(id);
+    }
+    const view = this.viewOf(id);
+    if (!key || !view) return;
     // only resend the image when the display changed (time to the second, bar to the pixel)
     const sig = JSON.stringify({ ...view, progress: Math.round((view.progress ?? 0) * 60) });
     if (this.#lastView.get(id) === sig) return;

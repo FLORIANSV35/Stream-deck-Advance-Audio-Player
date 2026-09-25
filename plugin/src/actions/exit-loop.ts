@@ -7,7 +7,7 @@ import {
   type WillAppearEvent,
 } from "@elgato/streamdeck";
 import type { JsonValue } from "@elgato/utils";
-import { engine } from "../engine.js";
+import { runExitLoop } from "../remote-actions.js";
 import { isGroupsEvent, normGroup, sendGroups } from "../groups.js";
 import { inGroup, playbacks } from "../registry.js";
 import { exitLoopKey } from "../render.js";
@@ -36,9 +36,6 @@ export class ExitLoopAction extends SingletonAction<ExitLoopSettings> {
   }
 
   override onKeyDown(ev: KeyDownEvent<ExitLoopSettings>): void {
-    const group = normGroup(ev.payload.settings.group);
-    // sending exitLoop to a non-looping track is a harmless no-op, so no need to filter on `looping` here
-    const ids = [...playbacks.values()].filter((p) => inGroup(p, group)).map((p) => p.id);
-    if (ids.length > 0) engine.exitLoopMany(ids);
+    runExitLoop(ev.payload.settings);
   }
 }

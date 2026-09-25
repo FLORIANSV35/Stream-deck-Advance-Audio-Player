@@ -8,10 +8,9 @@ import {
 } from "@elgato/streamdeck";
 import type { JsonValue } from "@elgato/utils";
 import { isGroupsEvent, normGroup, sendGroups } from "../groups.js";
-import { ctxOf, inGroup, playbacks, trackOf } from "../registry.js";
+import { runSetLoopPoint } from "../remote-actions.js";
 import { loopPointKey } from "../render.js";
 import type { SetLoopPointSettings } from "../settings.js";
-import { playAction } from "./play.js";
 
 /** Marks a loop-in or loop-out point live, at the current playback position, for every running track
  * matching a group (all sounds, or one group) — one write per distinct track, even if it plays on several
@@ -37,21 +36,7 @@ export class SetLoopPointAction extends SingletonAction<SetLoopPointSettings> {
   }
 
   override async onKeyDown(ev: KeyDownEvent<SetLoopPointSettings>): Promise<void> {
-    const s = ev.payload.settings;
-    const which = s.which === "out" ? "out" : "in";
-    const group = normGroup(s.group);
-    // one write per distinct track: a track with several outputs has several playback entries for it
-    const seen = new Set<string>();
-    let matched = false;
-    for (const p of playbacks.values()) {
-      if (!inGroup(p, group)) continue;
-      const ctx = ctxOf(p.id), track = trackOf(p.id);
-      const key = `${ctx}#${track}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      matched = true;
-      await playAction?.setLoopPoint(ctx, track, which, p.pos);
-    }
+    const matched = await runSetLoopPoint(ev.payload.settings);
     if (matched) void ev.action.showOk();
     else void ev.action.showAlert();
   }

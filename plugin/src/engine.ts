@@ -41,6 +41,10 @@ type EngineEvents = {
   ended: [id: string, reason: "finished" | "stopped" | "error", message?: string];
   /** the engine restarted: all running playbacks are lost */
   reset: [];
+  /** a preload()'d file has been read through once (OS file cache now warm for it) */
+  preloaded: [file: string];
+  /** a warm()'d device's silent stream has started */
+  warmed: [device: string];
 };
 
 // macOS: native Objective-C engine (saap-engine); Windows: Rust engine (saap-engine.exe)
@@ -113,6 +117,15 @@ class Engine extends EventEmitter<EngineEvents> {
       case "ended":
         this.emit("ended", m.id, m.reason, m.message);
         break;
+      case "preloaded":
+        this.emit("preloaded", m.file);
+        break;
+      case "warmed":
+        this.emit("warmed", m.device);
+        break;
+      case "log":
+        streamDeck.logger.info(`[engine] ${m.message}`);
+        break;
     }
   }
 
@@ -140,6 +153,15 @@ class Engine extends EventEmitter<EngineEvents> {
     });
   }
 
+  /**
+   * Pre-starts a silent stream on this output device, if not already running. Some audio interfaces take a real
+   * couple of seconds to power up the first time a stream starts on them, and whatever plays during that window is
+   * lost; warming a device well ahead of an actual Play press (see PlayAction) avoids that cutting into real audio.
+   */
+  warm(device: string): void { this.#send({ cmd: "warm", device }); }
+  /** Reads a file through once in the background, purely so the OS file cache is warm by the time Play actually
+   * needs it — a cold read otherwise cuts into the very start of playback, same idea as warm() for a device. */
+  preload(file: string): void { this.#send({ cmd: "preload", file }); }
   play(cmd: PlayCommand): void { this.#send({ cmd: "play", ...cmd }); }
   /** Starts several tracks at one exact instant (synchronized within a millisecond). */
   playBatch(items: PlayCommand[]): void { this.#send({ cmd: "playBatch", items }); }

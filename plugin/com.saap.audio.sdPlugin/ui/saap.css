@@ -96,3 +96,16 @@ body { overflow-x: hidden; }
 .updcheck { display: inline-flex; align-items: center; gap: 8px; padding-top: 5px; color: var(--font-color); font-size: 10pt; cursor: pointer; }
 .updcheck input { accent-color: #22c55e; margin: 0; }
 .updcur { display: inline-block; padding-top: 5px; color: #8b93a3; }
+
+/* plain <input> used for global (non-per-key) settings, e.g. Updates and Network control */
+.plain-input { width: 100%; height: var(--input-height); padding: 0 10px; border: 1px solid #2f3540; border-radius: 3px;
+  background: var(--input-bg-color); color: var(--input-font-color); font: inherit; font-size: 10pt; }
+.plain-input::placeholder { color: #6b7383; }
+
+/* Remote Trigger: "Test connection" button and its status */
+.testbtn { padding: 6px 12px; border: 1px solid #2f3540; border-radius: 8px; background: #232730; color: #cfd4de;
+  font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.testbtn:hover { background: #2b303b; }
+.teststatus { margin-left: 8px; font-size: 11px; color: #8b93a3; }
+.teststatus.ok { color: #5eead4; }
+.teststatus.err { color: #f87171; }

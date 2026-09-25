@@ -3,8 +3,9 @@ import { EventEmitter } from "node:events";
 
 type Level = { pct: number; muted: boolean };
 
-/** Volume curve: 100 % = gain 1, 50 % ≈ -12 dB, finer resolution at low levels. */
-export const toGain = (pct: number): number => Math.max(0, Math.min(1, pct / 100)) ** 2;
+/** Volume curve: 100 % = gain 1, 50 % ≈ -12 dB, finer resolution at low levels. A track's own volume can go up
+ * to 200 % (gain 4, +12 dB boost — see settings.ts); master/group levels stay capped at 100 % (see Mixer.set). */
+export const toGain = (pct: number): number => Math.max(0, Math.min(2, pct / 100)) ** 2;
 
 /** Live levels per target: "*" (master) and one level per group. Persisted between sessions. */
 class Mixer extends EventEmitter<{ change: [target: string] }> {

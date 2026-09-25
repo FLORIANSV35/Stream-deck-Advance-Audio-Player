@@ -334,7 +334,7 @@ impl Voice {
         // leaving no dry segment at all) and to however much source material actually exists past loop_out
         // to read as the crossfade's tail (there may be little to none if loop_out sits near `end`)
         let loop_fade = p.loop_fade.max(0.0).min((loop_out - loop_in) / src_rate).min((end - loop_out) / src_rate);
-        let gain = p.volume.clamp(0.0, 1.0);
+        let gain = p.volume.clamp(0.0, 4.0); // 1 = unity; up to 4 = +12 dB boost (master/group/track volume can combine above 100 %)
         let mut state = State {
             data,
             start,
@@ -426,7 +426,7 @@ impl Voice {
     }
 
     pub fn set_volume(&self, v: f32) {
-        self.lock().gain = v.clamp(0.0, 1.0);
+        self.lock().gain = v.clamp(0.0, 4.0);
     }
 
     pub fn pause(&self) {

@@ -89,6 +89,18 @@ export function playKey(v: PlayView): string {
   `));
 }
 
+/** Shown in place of a Play key's idle image while its files/outputs are still being prepared (see
+ * PlayAction#prewarm): a filling ring instead of the play triangle, so pressing too early isn't the only
+ * feedback that something is still getting ready. */
+export function loadingKey(o: { label: string; group?: string; progress: number }): string {
+  return uri(frame(`
+    ${title(o.label)}
+    ${ring(o.progress, "b")}
+    ${text(72, 84, 13, C.muted, "Loading…", { weight: 600 })}
+    ${o.group ? text(72, 137, 14, C.muted, clip(o.group, 16), { weight: 500 }) : ""}
+  `));
+}
+
 export function volumeKey(o: { target: string; icon: "up" | "down" | "mute" | "set"; pct: number; muted: boolean }): string {
   const accent = o.muted ? "r" : "g";
   const glyph = {
@@ -160,4 +172,51 @@ export function loopPointKey(o: { label: string; group?: string; which: "in" | "
     ${bracket}
     ${text(72, 137, 13, C.text, clip(o.label, 16), { weight: 500 })}
   `));
+}
+
+export function remoteKey(o: { label: string; kind: string; which?: "in" | "out"; status?: "ok" | "error" }): string {
+  // the same glyph the real action would show, at a glance, plus a small link badge so it still reads as remote
+  const GLYPHS: Record<string, string> = {
+    play: `<path d="M62 62 L62 94 L90 78 Z" fill="url(#g)" stroke="url(#g)" stroke-width="5" stroke-linejoin="round"/>`,
+    volume: `<rect x="52" y="68" width="40" height="7" rx="3.5" fill="url(#g)"/><rect x="52" y="82" width="40" height="7" rx="3.5" fill="url(#g)"/>`,
+    skip: `<path d="M52 58 L68 76 L52 94" fill="none" stroke="url(#b)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+           <path d="M78 58 L94 76 L78 94" fill="none" stroke="url(#b)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>`,
+    stopAll: `<rect x="57" y="65" width="30" height="30" rx="7" fill="url(#r)"/>`,
+    exitLoop: `<path d="M86 61 A22 22 0 1 1 57 60" fill="none" stroke="url(#b)" stroke-width="7" stroke-linecap="round"/>
+               <path d="M57 60 L38 76" stroke="url(#b)" stroke-width="7" stroke-linecap="round"/>
+               <path d="M43 66 L38 76 L49 78" fill="none" stroke="url(#b)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>`,
+    loopPoint: o.which === "out"
+      ? `<path d="M58 50 h18 v52 h-18" fill="none" stroke="url(#b)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>`
+      : `<path d="M86 50 h-18 v52 h18" fill="none" stroke="url(#b)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>`,
+  };
+  const KIND_LABEL: Record<string, string> = {
+    play: "PLAY", volume: "VOLUME", skip: "SKIP", stopAll: "STOP ALL", exitLoop: "EXIT LOOP", loopPoint: "LOOP POINT",
+  };
+  const dash = o.status === "error" ? `stroke="${C.red[1]}"` : `stroke="url(#b)"`;
+  // small link badge under the main glyph: this key acts on another computer, not on sounds here
+  const badge = `
+    <circle cx="63" cy="112" r="3.2" fill="none" stroke="url(#b)" stroke-width="2.4"/>
+    <circle cx="81" cy="112" r="3.2" fill="none" stroke="url(#b)" stroke-width="2.4"/>
+    <line x1="67" y1="112" x2="77" y2="112" ${dash} stroke-width="2" stroke-linecap="round" stroke-dasharray="2 2.5"/>`;
+  return uri(frame(`
+    ${text(72, 24, 16, C.muted, clip(KIND_LABEL[o.kind] ?? "REMOTE", 14), { weight: 600, spacing: 1.2 })}
+    <circle cx="72" cy="78" r="${RING_R}" fill="none" stroke="${C.faint}" stroke-width="7"/>
+    ${GLYPHS[o.kind] ?? GLYPHS.play}
+    ${badge}
+    ${text(72, 137, 13, C.text, clip(o.label, 16), { weight: 500 })}
+  `));
+}
+
+/** Adds a small corner badge (done / failed) to an already-rendered key image, in place of Stream Deck's own
+ * full-key showOk()/showAlert() overlay — used by Remote Trigger so a press's result doesn't hide the rest of
+ * the icon (e.g. a mirrored countdown). */
+export function withStatusBadge(dataUri: string, ok: boolean): string {
+  const svg = decodeURIComponent(dataUri.replace("data:image/svg+xml;charset=utf8,", ""));
+  const mark = ok
+    ? `<path d="M119 27 L123 31 L131 21" fill="none" stroke="#052e1d" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>`
+    : `<path d="M120 21 L130 31 M130 21 L120 31" stroke="#450a0a" stroke-width="3.2" stroke-linecap="round"/>`;
+  const badge = `
+    <circle cx="125" cy="26" r="14" fill="url(#${ok ? "g" : "r"})" stroke="#0d0f13" stroke-width="2.5"/>
+    ${mark}`;
+  return `data:image/svg+xml;charset=utf8,${encodeURIComponent(svg.replace("</svg>", `${badge}</svg>`))}`;
 }

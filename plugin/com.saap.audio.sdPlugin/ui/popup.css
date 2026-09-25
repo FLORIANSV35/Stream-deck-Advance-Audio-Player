@@ -7,8 +7,6 @@ body.popup sdpi-note { margin-left: 4px; margin-right: 4px; max-width: 900px; }
 
 body.popup .tracks { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
 body.popup .card { max-width: none; margin: 8px 0; }
-body.popup .card > summary { cursor: default; pointer-events: none; }
-body.popup .card > summary::after { display: none; }
 body.popup .sub { max-width: 320px; }
 body.popup .card .body { padding: 12px 10px 16px; }
 body.popup .wave canvas { height: 260px; }
@@ -28,3 +26,10 @@ body.popup .outpick .panel { max-height: 420px; }
 .tab:hover { background: #21252d; color: #eceef2; }
 .tab.on { border-color: #1f4d43; background: #16302b; color: #5eead4; }
 .tab.on small { color: #3f9c8b; }
+
+/* dropping an audio file onto a track (see popup.js) */
+body.popup .card.dropping { outline: 2px dashed #5eead4; outline-offset: -2px; background: #142a26; }
+.dropstatus { position: sticky; top: 52px; z-index: 4; margin: 8px 32px 0; padding: 8px 14px; border-radius: 9px;
+  font-size: 12px; font-weight: 600; }
+.dropstatus.busy { background: #16302b; color: #5eead4; }
+.dropstatus.err { background: #3a1414; color: #fca5a5; }

@@ -103,3 +103,26 @@ export type SetLoopPointSettings = {
   group?: string;
   which?: "in" | "out";
 };
+
+/** What a Remote Trigger key sends to another computer's SAAP Audio over the network (see network-server.ts). */
+export type RemoteTriggerSettings = {
+  label?: string;
+  host?: string;
+  port?: number;
+  key?: string;
+  kind?: "play" | "volume" | "skip" | "stopAll" | "exitLoop" | "loopPoint";
+  /** kind "play": the id of the target Play key on the host, from the list "Test connection" fetches */
+  targetCtx?: string;
+  targetLabel?: string;
+  /** kind "volume" */
+  target?: string;
+  mode?: string;
+  step?: number;
+  value?: number;
+  /** kinds "skip" / "stopAll" / "exitLoop" / "loopPoint": group name on the host ("" = all sounds) */
+  group?: string;
+  direction?: "forward" | "back";
+  seconds?: number;
+  fade?: number;
+  which?: "in" | "out";
+};
