@@ -1,6 +1,6 @@
 import streamDeck from "@elgato/streamdeck";
 import { ExitLoopAction } from "./actions/exit-loop.js";
-import { PlayAction } from "./actions/play.js";
+import { PlayAction, playAction } from "./actions/play.js";
 import { RemoteTriggerAction } from "./actions/remote-trigger.js";
 import { SeekAction } from "./actions/seek.js";
 import { SetLoopPointAction } from "./actions/set-loop-point.js";
@@ -29,3 +29,5 @@ await streamDeck.connect();
 await mixer.load();
 updater.start();
 networkControl.start();
+// every Play key on every page, not only the ones currently showing
+playAction?.prewarmAllProfiles();

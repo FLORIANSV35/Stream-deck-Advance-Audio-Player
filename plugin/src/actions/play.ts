@@ -21,6 +21,7 @@ import { pickAudioFile } from "../filepicker.js";
 import { isGroupsEvent, normGroup, replyToInspector, sendGroups } from "../groups.js";
 import { mixer } from "../mixer.js";
 import { outputItems, trackOutputs } from "../outputs.js";
+import { allPlayKeySettings } from "../profiles.js";
 import { playbacks, gainFor, inGroup, ctxOf, type Playback } from "../registry.js";
 import { fmtTime, loadingKey, playKey, type PlayView } from "../render.js";
 import { MAX_TRACKS, seconds, trackSettings, type PlaySettings } from "../settings.js";
@@ -57,6 +58,8 @@ export class PlayAction extends SingletonAction<PlaySettings> {
   /** Every "file:<path>" / "device:<uid>" token confirmed ready this session (see #prewarm) — once warm,
    * treated as staying warm, so a later settings change doesn't re-show the loading bar or redo the work. */
   #everWarmed = new Set<string>();
+  /** When each token was last asked of the engine (see #request). */
+  #requested = new Map<string, number>();
   /** Per key still showing its loading bar: how many of its tokens are still outstanding, out of how many. */
   #pending = new Map<string, { total: number; remaining: Set<string> }>();
 
@@ -124,6 +127,14 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       const ctxs = new Set([...playbacks.keys()].map(ctxOf));
       playbacks.clear();
       ctxs.forEach((c) => this.#render(c));
+      // the restarted engine has lost every warm device: nothing counts as ready any more. It comes back up
+      // about a second later, so prepare everything again once it can hear us
+      this.#everWarmed.clear();
+      this.#requested.clear();
+      setTimeout(() => {
+        this.prewarmAllProfiles();
+        for (const [id, s] of this.#settings) if (this.#keys.has(id)) this.#prewarm(id, s);
+      }, 2000);
     });
   }
 
@@ -147,6 +158,22 @@ export class PlayAction extends SingletonAction<PlaySettings> {
    * session are skipped (no re-work, and no re-showing the loading bar for something that hasn't changed).
    */
   #prewarm(id: string, s: PlaySettings): void {
+    const remaining = new Set([...this.#tokensOf(s)].filter((tok) => !this.#everWarmed.has(tok)));
+    if (remaining.size === 0) {
+      this.#pending.delete(id);
+      return;
+    }
+    this.#pending.set(id, { total: remaining.size, remaining });
+    this.#renderLoading(id);
+    for (const tok of remaining) this.#request(tok);
+    // safety net: a "warmed"/"preloaded" event can be lost (e.g. Windows has no device-warming to report on),
+    // so the loading bar must never get stuck — clear it unconditionally after a few seconds regardless
+    setTimeout(() => this.#clearPending(id), 5000);
+    this.#maybeRescanProfiles();
+  }
+
+  /** The "file:<path>" / "device:<uid>" tokens a key's tracks need ready. */
+  #tokensOf(s: PlaySettings): Set<string> {
     const tokens = new Set<string>();
     for (let n = 1; n <= MAX_TRACKS; n++) {
       const t = trackSettings(s, n);
@@ -155,20 +182,36 @@ export class PlayAction extends SingletonAction<PlaySettings> {
       const path = resolvePath(t.file as string);
       if (path) tokens.add(`file:${path}`);
     }
-    const remaining = new Set([...tokens].filter((tok) => !this.#everWarmed.has(tok)));
-    if (remaining.size === 0) {
-      this.#pending.delete(id);
-      return;
+    return tokens;
+  }
+
+  /** Asks the engine to prepare one token, unless that was already asked very recently (its answer is in flight). */
+  #request(tok: string): void {
+    const at = this.#requested.get(tok);
+    if (at !== undefined && Date.now() - at < 15_000) return;
+    this.#requested.set(tok, Date.now());
+    if (tok.startsWith("file:")) engine.preload(tok.slice("file:".length));
+    else engine.warm(tok.slice("device:".length));
+  }
+
+  #lastProfileScan = 0;
+
+  /**
+   * Prepares the files and outputs of every Play key in every profile and page, not only those on screen:
+   * Stream Deck only reports a key while it's showing, so a key on another page would otherwise stay cold until
+   * someone navigates there. Read from Stream Deck's profile files (see profiles.ts). No loading bar — those
+   * keys aren't visible — but the same tokens are then already warm when the key does appear.
+   */
+  prewarmAllProfiles(): void {
+    this.#lastProfileScan = Date.now();
+    for (const s of allPlayKeySettings()) {
+      for (const tok of this.#tokensOf(s)) if (!this.#everWarmed.has(tok)) this.#request(tok);
     }
-    this.#pending.set(id, { total: remaining.size, remaining });
-    this.#renderLoading(id);
-    for (const tok of remaining) {
-      if (tok.startsWith("file:")) engine.preload(tok.slice("file:".length));
-      else engine.warm(tok.slice("device:".length));
-    }
-    // safety net: a "warmed"/"preloaded" event can be lost (e.g. Windows has no device-warming to report on),
-    // so the loading bar must never get stuck — clear it unconditionally after a few seconds regardless
-    setTimeout(() => this.#clearPending(id), 5000);
+  }
+
+  /** A key appearing may mean the user just added or edited keys elsewhere: re-read the profiles, at most every 30 s. */
+  #maybeRescanProfiles(): void {
+    if (Date.now() - this.#lastProfileScan > 30_000) this.prewarmAllProfiles();
   }
 
   /** A file/device is confirmed ready (see the engine.on("preloaded"/"warmed") subscriptions above). */
