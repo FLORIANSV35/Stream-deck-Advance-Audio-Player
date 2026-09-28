@@ -54,6 +54,13 @@ which sound (by id) to play, stop, pause, etc. One upside: several buttons can s
 - **Sound Title** — just the name, no countdown, for a plainer button.
 - **Sound is playing** / **Sound is paused** — both take a Sound id, for coloring a button by that sound's state.
 
+## Update checks
+
+The web editor shows a banner when a newer release of this module is available on GitHub (one anonymous check a
+day). Unlike the Stream Deck plugin, there's no self-install — the banner just links to the release page, since
+Companion has no way to update a manually-installed module for you; download and re-import it yourself. Turn it
+off with the banner's own "Don't check for updates" button.
+
 ## Known limitations vs. the Stream Deck plugin
 
 - File paths are typed/pasted, or chosen via the native **Browse…** dialog / drag-and-drop on the web editor —

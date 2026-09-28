@@ -12,9 +12,9 @@ interface Data {
   sounds: Record<string, PlaySettings>;
   mixerLevels: Record<string, MixerLevel>;
   groups: string[];
+  /** small standalone preferences (currently just the update-check toggle, see updater.ts) */
+  prefs: Record<string, unknown>;
 }
-
-const EMPTY: Data = { sounds: {}, mixerLevels: {}, groups: [] };
 
 /**
  * All of this module instance's own persistent state — every sound's settings, and the master/group mixer levels
@@ -34,11 +34,11 @@ export class Store {
 
   #load(): Data {
     try {
-      if (!existsSync(this.#path)) return { ...EMPTY, sounds: {}, mixerLevels: {}, groups: [] };
+      if (!existsSync(this.#path)) return { sounds: {}, mixerLevels: {}, groups: [], prefs: {} };
       const raw = JSON.parse(readFileSync(this.#path, "utf8"));
-      return { sounds: raw.sounds ?? {}, mixerLevels: raw.mixerLevels ?? {}, groups: raw.groups ?? [] };
+      return { sounds: raw.sounds ?? {}, mixerLevels: raw.mixerLevels ?? {}, groups: raw.groups ?? [], prefs: raw.prefs ?? {} };
     } catch {
-      return { ...EMPTY, sounds: {}, mixerLevels: {}, groups: [] };
+      return { sounds: {}, mixerLevels: {}, groups: [], prefs: {} };
     }
   }
 
@@ -90,6 +90,15 @@ export class Store {
   addGroup(name: string): void {
     if (!name || name === "*" || this.#data.groups.includes(name)) return;
     this.#data.groups.push(name);
+    this.#scheduleSave();
+  }
+
+  pref<T>(key: string, fallback: T): T {
+    return (this.#data.prefs[key] as T | undefined) ?? fallback;
+  }
+
+  setPref(key: string, value: unknown): void {
+    this.#data.prefs[key] = value;
     this.#scheduleSave();
   }
 }

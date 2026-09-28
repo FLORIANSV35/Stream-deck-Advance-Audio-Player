@@ -12,6 +12,7 @@ import { mixer } from "./mixer.js";
 import { Player } from "./player.js";
 import { getPresetDefinitions } from "./presets.js";
 import { Store } from "./store.js";
+import { Updater } from "./updater.js";
 
 /**
  * Where bin/ (the bundled native engine) and web/ (the editor's static files) live, relative to this running
@@ -57,7 +58,10 @@ class SaapAudioInstance extends InstanceBase<SaapConfig> {
     player.on("position", (_soundId, track) => { if (track === 1) this.checkFeedbacks("sound-time"); });
     mixer.on("change", () => player.applyGains());
 
-    const editor = new EditorServer(engine, store, player, join(packageRoot, "web"), join(dataDir, "uploads"));
+    const updater = new Updater(store, packageRoot);
+    updater.start();
+
+    const editor = new EditorServer(engine, store, player, updater, join(packageRoot, "web"), join(dataDir, "uploads"));
     this.#editor = editor;
 
     this.setActionDefinitions(getActionDefinitions(player, store, editor));

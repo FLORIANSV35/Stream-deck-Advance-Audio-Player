@@ -4,13 +4,21 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px -apple-system, "Segoe UI", sans-serif; }
+body { display: flex; flex-direction: column; }
 button { font: inherit; cursor: pointer; }
 input, select { font: inherit; color: var(--text); background: var(--input-bg); border: 1px solid #2f3540; border-radius: 6px; padding: 6px 8px; }
 label.field { display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--muted); }
 label.field.row { flex-direction: row; align-items: center; gap: 8px; }
 label.field.row input[type=checkbox] { margin: 0; }
 
-.shell { display: flex; height: 100%; }
+.updatebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 9px 16px; background: #16302b; color: #a7f3e3; font-size: 12px; border-bottom: 1px solid #1f4d43; }
+.updatebar[hidden] { display: none; }
+.updatebar span { flex: 1 1 auto; }
+.updatebar a { color: var(--accent2); font-weight: 600; text-decoration: none; }
+.updatebar a:hover { text-decoration: underline; }
+.updatebar .ghost { flex: none; background: transparent; border: 1px solid #2f6b5d; color: var(--accent2); border-radius: 6px; padding: 4px 10px; font-size: 11px; font-weight: 600; }
+
+.shell { display: flex; flex: 1; min-height: 0; }
 .sidebar { width: 240px; flex: none; border-right: 1px solid var(--border2); display: flex; flex-direction: column; background: var(--panel2); }
 .sidebar .hero { padding: 14px; border-bottom: 1px solid var(--border2); }
 .sidebar .hero h1 { margin: 0; font-size: 14px; }

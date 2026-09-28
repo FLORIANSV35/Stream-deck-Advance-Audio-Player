@@ -341,5 +341,25 @@ function connectWS() {
   ws.onclose = () => setTimeout(connectWS, 2000);
 }
 
+async function checkForUpdate() {
+  const bar = document.getElementById("updatebar");
+  const text = document.getElementById("updatebar-text");
+  const link = document.getElementById("updatebar-link");
+  const dismiss = document.getElementById("updatebar-dismiss");
+  const state = await api("api/update");
+  if (state.update) {
+    text.textContent = `SAAP Audio Companion module v${state.update.version} is available (you have v${state.current}).`;
+    link.href = state.update.page;
+    bar.hidden = false;
+  } else {
+    bar.hidden = true;
+  }
+  dismiss.onclick = async () => {
+    await api("api/update", { method: "PUT", body: JSON.stringify({ enabled: false }) });
+    bar.hidden = true;
+  };
+}
+
 loadSounds();
 connectWS();
+checkForUpdate();

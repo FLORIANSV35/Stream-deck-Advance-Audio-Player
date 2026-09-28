@@ -13,6 +13,7 @@ import { outputItems } from "./outputs.js";
 import type { Player } from "./player.js";
 import type { PlaySettings } from "./settings.js";
 import type { Store } from "./store.js";
+import type { Updater } from "./updater.js";
 
 const AUDIO_EXT = new Set([".wav", ".mp3", ".aif", ".aiff", ".m4a", ".aac", ".flac", ".caf", ".mp4"]);
 const MAX_UPLOAD_BYTES = 1024 * 1024 * 1024; // 1 GB
@@ -33,6 +34,7 @@ export class EditorServer {
   readonly #engine: Engine;
   readonly #store: Store;
   readonly #player: Player;
+  readonly #updater: Updater;
   readonly #webDir: string;
   readonly #uploadsDir: string;
   readonly #token = randomBytes(16).toString("hex");
@@ -40,10 +42,11 @@ export class EditorServer {
   #wss?: WebSocketServer;
   #port = 0;
 
-  constructor(engine: Engine, store: Store, player: Player, webDir: string, uploadsDir: string) {
+  constructor(engine: Engine, store: Store, player: Player, updater: Updater, webDir: string, uploadsDir: string) {
     this.#engine = engine;
     this.#store = store;
     this.#player = player;
+    this.#updater = updater;
     this.#webDir = webDir;
     this.#uploadsDir = uploadsDir;
     player.on("position", (soundId, track, playing, pos, dur) => this.#broadcast({ event: "position", soundId, track, playing, pos, dur }));
@@ -181,6 +184,14 @@ export class EditorServer {
       const patch = JSON.parse((await this.#body(req)).toString("utf8") || "{}");
       mixer.set(target, patch);
       return this.#json(res, 200, mixer.level(target));
+    }
+    if (path[0] === "update" && req.method === "GET") {
+      return this.#json(res, 200, await this.#updater.state());
+    }
+    if (path[0] === "update" && req.method === "PUT") {
+      const { enabled } = JSON.parse((await this.#body(req)).toString("utf8") || "{}");
+      this.#updater.setEnabled(!!enabled);
+      return this.#json(res, 200, await this.#updater.state());
     }
     this.#json(res, 404, { error: "not found" });
   }
