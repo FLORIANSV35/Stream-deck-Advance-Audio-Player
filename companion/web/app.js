@@ -1,6 +1,7 @@
 // The only settings UI this module has (see companion/src/editor-server.ts and companion/HELP.md): lists every
 // configured sound, and edits its tracks/trim/loop/routing/groups — a Companion "Play Sound" action just
 // references a sound here by its id.
+import { createOutputPicker } from "./outpick.js";
 import { createWaveform } from "./waveform.js";
 
 const MAX_TRACKS = 6;
@@ -159,7 +160,7 @@ function renderTrack(soundId, s, n) {
         <div class="wave-info"></div>
       </div>
       <div class="grid3">
-        <label class="field">Output<select class="f-output"></select></label>
+        <div class="field"><span>Output</span><div class="outpick"></div></div>
         <label class="field">Volume (0-200%)<input class="f-volume" type="number" min="0" max="200" step="1" /></label>
         <label class="field row"><input type="checkbox" class="f-loop" /> Loop</label>
       </div>
@@ -179,13 +180,11 @@ function renderTrack(soundId, s, n) {
     </div>`;
   mainEl.append(details);
 
-  const outSelect = details.querySelector(".f-output");
-  for (const item of outputsCache) {
-    const opt = document.createElement("option");
-    opt.value = item.value; opt.textContent = item.label;
-    outSelect.append(opt);
-  }
-  outSelect.value = f.outputs[0] || "default::pair::0";
+  const outPicker = createOutputPicker(details.querySelector(".outpick"), f.outputs, (v) => {
+    s[fieldName("outputs", n)] = v;
+    scheduleSave(soundId, s);
+  });
+  outPicker.setItems(outputsCache);
 
   const fileInput = details.querySelector(".f-file"); fileInput.value = f.file;
   const volumeInput = details.querySelector(".f-volume"); volumeInput.value = f.volume;
@@ -227,7 +226,6 @@ function renderTrack(soundId, s, n) {
 
   function save() {
     s[fieldName("file", n)] = fileInput.value;
-    s[fieldName("outputs", n)] = [outSelect.value];
     s[fieldName("volume", n)] = num(volumeInput.value, 100);
     s[fieldName("loop", n)] = loopInput.checked;
     s[fieldName("fadeIn", n)] = num(fadeInInput.value);
@@ -262,7 +260,6 @@ function renderTrack(soundId, s, n) {
     save();
     wf.setFile("", () => Promise.resolve(undefined));
   });
-  outSelect.addEventListener("change", save);
   volumeInput.addEventListener("input", save);
   loopInput.addEventListener("change", () => { track.loopOn = loopInput.checked; updateLoopVisibility(); save(); wf.draw(); });
   fadeInInput.addEventListener("input", save);

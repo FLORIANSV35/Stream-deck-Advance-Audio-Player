@@ -16,13 +16,16 @@ export function parseOutput(value: string | undefined): ParsedOutput {
   return { device: m[1], mono: m[2] === "mono", channel: Number(m[3]) };
 }
 
-/** Items of the output dropdown (one group per device) for the web editor. */
+/** Items of the output checkbox picker — same shape as the Stream Deck plugin's own (plugin/src/outputs.ts): a
+ * flat "System default output" entry, then one entry per device with its stereo-pair/mono channels as children. */
 export function outputItems(devices: OutputDevice[]) {
-  const items: { label: string; value: string }[] = [{ label: "System default output", value: "default::pair::0" }];
+  const items: object[] = [{ label: "System default output", value: "default::pair::0" }];
   for (const d of devices) {
     const n = Math.min(d.channels, MAX_CHANNELS);
-    for (let c = 0; c + 1 < n; c += 2) items.push({ label: `${d.name} — Stereo ${c + 1}-${c + 2}`, value: `${d.uid}::pair::${c}` });
-    for (let c = 0; c < n; c++) items.push({ label: `${d.name} — Mono ${c + 1}`, value: `${d.uid}::mono::${c}` });
+    const children: { label: string; value: string }[] = [];
+    for (let c = 0; c + 1 < n; c += 2) children.push({ label: `Stereo ${c + 1}-${c + 2}`, value: `${d.uid}::pair::${c}` });
+    for (let c = 0; c < n; c++) children.push({ label: `Mono ${c + 1}`, value: `${d.uid}::mono::${c}` });
+    items.push({ label: d.name, children });
   }
   return items;
 }
