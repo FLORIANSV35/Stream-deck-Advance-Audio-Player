@@ -26,10 +26,10 @@
     const n = Number(root.dataset.n);
     root.innerHTML =
       '<canvas></canvas>' +
-      '<div class="wave-sliders">' +
-      '<label class="wz-row"><span>Zoom</span><input type="range" class="wz-zoom" min="0" max="100" value="0" step="1" disabled>' +
-      '<button type="button" class="wz-fit" title="Show the whole file">Fit</button></label>' +
-      '<label class="wz-row"><span>Position</span><input type="range" class="wz-pos" min="0" max="100" value="0" step="1" disabled></label>' +
+      '<div class="wave-controls">' +
+      '<input type="range" class="wz-zoom" min="0" max="100" value="0" step="1" disabled title="Zoom">' +
+      '<input type="range" class="wz-pos" min="0" max="100" value="0" step="1" disabled title="Position">' +
+      '<button type="button" class="wz-fit" title="Show the whole file">Fit</button>' +
       "</div>" +
       '<div class="wave-info"></div>';
     const canvas = root.querySelector("canvas");

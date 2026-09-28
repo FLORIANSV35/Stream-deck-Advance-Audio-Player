@@ -50,15 +50,14 @@ h2.section::after { content: ""; flex: 1; height: 1px; background: #22262e; }
   touch-action: none; cursor: ew-resize; }
 .wave-info { min-height: 15px; margin-top: 6px; font-size: 11px; color: #8b93a3; font-variant-numeric: tabular-nums; }
 
-/* zoom/position sliders, below the waveform */
-.wave-sliders { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
-.wz-row { display: flex; align-items: center; gap: 8px; font-size: 10px; color: #8b93a3; }
-.wz-row span { flex: none; width: 46px; }
-.wz-row input[type="range"] { flex: 1; accent-color: #22c55e; }
-.wz-row input[type="range"]:disabled { opacity: .35; }
-.wz-row .wz-fit { flex: none; padding: 3px 9px; border: 1px solid #2f3540; border-radius: 5px;
+/* zoom/position sliders, overlaid as a thin bar along the bottom edge of the waveform itself */
+.wave-controls { position: absolute; left: 6px; right: 6px; bottom: 6px; display: flex; align-items: center; gap: 6px;
+  padding: 3px 7px; border-radius: 7px; background: rgba(15,17,21,.65); backdrop-filter: blur(2px); }
+.wave-controls input[type="range"] { flex: 1; height: 4px; margin: 0; accent-color: #22c55e; }
+.wave-controls input[type="range"]:disabled { opacity: .35; }
+.wave-controls .wz-fit { flex: none; padding: 2px 8px; border: 1px solid #2f3540; border-radius: 5px;
   background: rgba(20,22,26,.85); color: #cfd4de; font: inherit; font-size: 9px; font-weight: 700; letter-spacing: .04em; cursor: pointer; }
-.wz-row .wz-fit:hover { background: #2b303b; color: #eceef2; }
+.wave-controls .wz-fit:hover { background: #2b303b; color: #eceef2; }
 
 sdpi-note { display: block; max-width: 100%; margin: 10px 14px 0; padding: 9px 12px; border-left: 3px solid #22c55e; border-radius: 0 8px 8px 0;
   background: #1a1d23; color: #8f97a6; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
