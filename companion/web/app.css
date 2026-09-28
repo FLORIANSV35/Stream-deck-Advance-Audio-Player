@@ -52,14 +52,15 @@ label.field.row input[type=checkbox] { margin: 0; }
 .filerow .clear-file { border-color: #3f2020; background: #241515; color: #f2a5a5; font-weight: 600; }
 .filerow .clear-file:hover { background: #341c1c; }
 
-.wave { position: relative; margin-top: 4px; }
-.wave canvas { display: block; width: 100%; height: 84px; border-radius: 10px; background: #0f1115; border: 1px solid var(--border2); touch-action: none; cursor: ew-resize; }
+/* canvas + zoom/position controls form one seamless block: the controls are a thin strip directly below the
+ * drawing area (not overlaid on it), so they never cover any part of the waveform itself */
+.wave { margin-top: 4px; border-radius: 10px; background: #0f1115; border: 1px solid var(--border2); overflow: hidden; }
+.wave canvas { display: block; width: 100%; height: 84px; touch-action: none; cursor: ew-resize; }
 .wave-info { min-height: 15px; margin-top: 6px; font-size: 11px; color: #8b93a3; }
-.wave-controls { position: absolute; left: 6px; right: 6px; bottom: 6px; display: flex; align-items: center; gap: 6px;
-  padding: 3px 7px; border-radius: 7px; background: rgba(15,17,21,.65); backdrop-filter: blur(2px); }
+.wave-controls { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: var(--panel2); border-top: 1px solid var(--border2); }
 .wave-controls input[type="range"] { flex: 1; height: 4px; margin: 0; accent-color: var(--accent); }
 .wave-controls input[type="range"]:disabled { opacity: .35; }
-.wave-controls .wz-fit { flex: none; padding: 2px 8px; border: 1px solid #2f3540; border-radius: 5px; background: rgba(20,22,26,.85); color: #cfd4de; font-size: 9px; font-weight: 700; }
+.wave-controls .wz-fit { flex: none; padding: 2px 8px; border: 1px solid #2f3540; border-radius: 5px; background: #1c1f26; color: #cfd4de; font-size: 9px; font-weight: 700; }
 
 .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
 .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
