@@ -24,9 +24,18 @@
 
   function init(root) {
     const n = Number(root.dataset.n);
-    root.innerHTML = '<canvas></canvas><div class="wave-info"></div>';
+    root.innerHTML =
+      '<canvas></canvas><div class="wave-zoom">' +
+      '<button type="button" class="wz-out" title="Zoom out">−</button>' +
+      '<button type="button" class="wz-fit" title="Show the whole file">Fit</button>' +
+      '<button type="button" class="wz-in" title="Zoom in">+</button>' +
+      "</div>" +
+      '<div class="wave-scroll" hidden><div class="wave-thumb"></div></div>' +
+      '<div class="wave-info"></div>';
     const canvas = root.querySelector("canvas");
     const info = root.querySelector(".wave-info");
+    const scrollbar = root.querySelector(".wave-scroll");
+    const thumb = root.querySelector(".wave-thumb");
     const ctx = canvas.getContext("2d");
     // Slave track: trim and loop points can each be linked to track 1 independently.
     const st = {
@@ -38,6 +47,8 @@
       loopOn: false, ownLoopIn: 0, ownLoopOut: 0, mLoopIn: 0, mLoopOut: 0, loopLinked: false,
       get lin() { return this.loopLinked ? this.mLoopIn : this.ownLoopIn; }, set lin(v) { this.ownLoopIn = v; },
       get lout() { return this.loopLinked ? this.mLoopOut : this.ownLoopOut; }, set lout(v) { this.ownLoopOut = v; },
+      // visible time range (zoom): [0, duration] until zoomed in
+      viewStart: 0, viewEnd: 0,
     };
 
     // no debounce: settings are saved when the handle is released
@@ -92,7 +103,7 @@
       const p = ev.payload;
       if (!p || p.event !== "peaks" || p.track !== n || p.file !== st.file) return;
       if (p.error) { st.peaks = null; st.msg = p.error; }
-      else { st.peaks = p.peaks; st.duration = p.duration; st.msg = ""; }
+      else { st.peaks = p.peaks; st.duration = p.duration; st.msg = ""; st.viewStart = 0; st.viewEnd = p.duration; }
       draw();
     });
 
@@ -117,9 +128,30 @@
     // loop-out follows the same "0 = end" convention as trim-out, but clamped to the trim range
     const loopOutEff = () => (st.lout > 0 && st.lout < outTime() ? st.lout : outTime());
     const loopInEff = () => Math.max(st.tin, Math.min(st.lin, loopOutEff()));
-    const xOf = (t) => (t / st.duration) * canvas.clientWidth;
-    const tOf = (x) => Math.max(0, Math.min(st.duration, (x / canvas.clientWidth) * st.duration));
+    // zoom: xOf/tOf map through the visible [viewStart, viewEnd] window instead of the whole file, so every
+    // other computation (handle positions, hit-testing, drag targets) is zoom-aware for free
+    const viewLen = () => Math.max(0.001, st.viewEnd - st.viewStart);
+    const xOf = (t) => ((t - st.viewStart) / viewLen()) * canvas.clientWidth;
+    const tOf = (x) => Math.max(0, Math.min(st.duration, st.viewStart + (x / canvas.clientWidth) * viewLen()));
+    const MIN_VIEW = () => Math.max(0.3, st.duration * 0.005); // narrowest zoom: a fraction of a long file, never absurdly thin
     const LOOP_BAND = 16; // px from the top reserved for loop-marker hit-testing, clear of the trim grips
+
+    function zoomTo(width, centerT) {
+      if (!st.duration) return;
+      width = Math.max(MIN_VIEW(), Math.min(st.duration, width));
+      let start = centerT - width / 2;
+      start = Math.max(0, Math.min(st.duration - width, start));
+      st.viewStart = start;
+      st.viewEnd = start + width;
+      draw();
+    }
+    const zoomBy = (factor, centerT) => zoomTo(viewLen() * factor, centerT ?? (st.viewStart + st.viewEnd) / 2);
+    const panTo = (start) => {
+      const width = viewLen();
+      st.viewStart = Math.max(0, Math.min(st.duration - width, start));
+      st.viewEnd = st.viewStart + width;
+      draw();
+    };
 
     function draw() {
       const dpr = window.devicePixelRatio || 1;
@@ -135,12 +167,19 @@
         return;
       }
       const a = xOf(Math.min(st.tin, st.duration)), b = xOf(outTime());
-      const bw = w / st.peaks.length;
       const on = ctx.createLinearGradient(0, 0, 0, h);
       on.addColorStop(0, "#5eead4"); on.addColorStop(1, "#22c55e");
-      for (let i = 0; i < st.peaks.length; i++) {
-        const x = i * bw, amp = Math.max(2, Math.pow(st.peaks[i], 0.8) * (h - 14));
-        ctx.fillStyle = x + bw >= a && x <= b ? on : "#343946";
+      // each bin covers a fixed slice of the file's duration; zoomed in, that slice maps to a wider (or
+      // off-screen) span of pixels instead of the whole array always spanning the full canvas width
+      const binDur = st.duration / st.peaks.length;
+      const first = Math.max(0, Math.floor(st.viewStart / binDur) - 1);
+      const last = Math.min(st.peaks.length - 1, Math.ceil(st.viewEnd / binDur) + 1);
+      for (let i = first; i <= last; i++) {
+        const x = xOf(i * binDur), xEnd = xOf((i + 1) * binDur);
+        const bw = Math.max(1, xEnd - x);
+        if (xEnd < 0 || x > w) continue;
+        const amp = Math.max(2, Math.pow(st.peaks[i], 0.8) * (h - 14));
+        ctx.fillStyle = xEnd >= a && x <= b ? on : "#343946";
         ctx.beginPath();
         ctx.roundRect(x, (h - amp) / 2, Math.max(1.2, bw - 0.6), amp, 1);
         ctx.fill();
@@ -167,7 +206,16 @@
       const linkedBits = [st.trimLinked && "trim", st.loopLinked && "loop"].filter(Boolean);
       const linkedInfo = linkedBits.length ? `${linkedBits.join(" & ")} linked to track 1 · ` : "";
       const loopInfo = st.loopOn ? ` · Loop ${fmt(loopInEff())}–${fmt(loopOutEff())}` : "";
-      info.textContent = linkedInfo + `Start ${fmt(st.tin)} · End ${fmt(outTime())} · Length ${fmt(outTime() - st.tin)} / ${fmt(st.duration)}${loopInfo}`;
+      const zoomed = viewLen() < st.duration - 0.01;
+      const zoomInfo = zoomed ? ` · Zoomed ${fmt(st.viewStart)}–${fmt(st.viewEnd)}` : "";
+      info.textContent = linkedInfo + `Start ${fmt(st.tin)} · End ${fmt(outTime())} · Length ${fmt(outTime() - st.tin)} / ${fmt(st.duration)}${loopInfo}${zoomInfo}`;
+
+      scrollbar.hidden = !zoomed;
+      if (zoomed) {
+        const tw = Math.max(16, (viewLen() / st.duration) * w);
+        thumb.style.width = `${tw}px`;
+        thumb.style.left = `${(st.viewStart / st.duration) * (w - tw)}px`;
+      }
     }
 
     let drag = null;
@@ -194,6 +242,29 @@
     canvas.addEventListener("pointerup", () => { if (drag) { drag = null; commit(); } });
     canvas.addEventListener("dblclick", () => {
       if (st.trimLinked) return; st.tin = 0; st.tout = 0; draw(); commit(); }); // double-click: whole file
+
+    // zoom: mouse wheel over the waveform (centered on the cursor), or the +/−/Fit buttons (centered on the
+    // middle of the current view); a thin scrollbar appears once zoomed in, its thumb draggable to pan
+    canvas.addEventListener("wheel", (e) => {
+      if (!st.peaks) return;
+      e.preventDefault();
+      zoomBy(e.deltaY > 0 ? 1.25 : 0.8, tOf(posX(e)));
+    }, { passive: false });
+    root.querySelector(".wz-in").addEventListener("click", () => zoomBy(0.5));
+    root.querySelector(".wz-out").addEventListener("click", () => zoomBy(2));
+    root.querySelector(".wz-fit").addEventListener("click", () => zoomTo(st.duration, st.duration / 2));
+
+    let panDrag = null;
+    thumb.addEventListener("pointerdown", (e) => {
+      panDrag = { startX: e.clientX, startView: st.viewStart };
+      thumb.setPointerCapture(e.pointerId);
+    });
+    thumb.addEventListener("pointermove", (e) => {
+      if (!panDrag) return;
+      const w = canvas.clientWidth || 1;
+      panTo(panDrag.startView + ((e.clientX - panDrag.startX) / w) * st.duration);
+    });
+    thumb.addEventListener("pointerup", () => { panDrag = null; });
 
     function move(x) {
       const t = tOf(x), min = 0.05;
