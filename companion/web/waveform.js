@@ -115,8 +115,11 @@ export function createWaveform(canvas, infoEl, track, opts) {
         ctx.beginPath(); ctx.moveTo(x - 5, 0); ctx.lineTo(x + 5, 0); ctx.lineTo(x, 9); ctx.closePath(); ctx.fill();
       }
     }
-    if (track.playing && track.pos >= track.viewStart && track.pos <= track.viewEnd) {
-      const x = xOf(track.pos);
+    // the engine reports pos as elapsed time since trim-in, not since the start of the file — offset it back
+    // to absolute file time before placing it on an axis that spans the whole file
+    const absPos = track.tin + track.pos;
+    if (track.playing && absPos >= track.viewStart && absPos <= track.viewEnd) {
+      const x = xOf(absPos);
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(x - 0.75, 0, 1.5, h);
       ctx.beginPath(); ctx.moveTo(x - 4, 0); ctx.lineTo(x + 4, 0); ctx.lineTo(x, 6); ctx.closePath(); ctx.fill();
