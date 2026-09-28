@@ -1,0 +1,31 @@
+{
+  "type": "connection",
+  "id": "saap-audio",
+  "name": "SAAP Audio",
+  "shortname": "saap-audio",
+  "description": "Multi-track synchronized sound player — the same native audio engine as the SAAP Audio Stream Deck plugin, embedded directly in Companion.",
+  "manufacturer": "SAAP",
+  "products": ["SAAP Audio"],
+  "keywords": ["audio", "sound", "player", "music", "stinger", "soundboard"],
+  "version": "0.0.0",
+  "license": "MIT",
+  "repository": "git+https://github.com/FLORIANSV35/Stream-deck-Advance-Audio-Player.git",
+  "bugs": "https://github.com/FLORIANSV35/Stream-deck-Advance-Audio-Player/issues",
+  "maintainers": [
+    {
+      "name": "Florian",
+      "email": "108956466+FLORIANSV35@users.noreply.github.com"
+    }
+  ],
+  "legacyIds": [],
+  "runtime": {
+    "type": "node22",
+    "api": "nodejs-ipc",
+    "apiVersion": "0.0.0",
+    "entrypoint": "../dist/main.js",
+    "permissions": {
+      "child-process": true,
+      "filesystem": true
+    }
+  }
+}

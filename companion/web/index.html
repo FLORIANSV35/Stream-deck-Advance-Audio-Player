@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SAAP Audio</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="hero">
+        <h1>SAAP Audio</h1>
+        <p>Sounds for this Companion connection</p>
+      </div>
+      <div class="soundlist" id="soundlist"></div>
+      <button id="addSound">+ New sound</button>
+      <button id="openMixer" class="ghost">Mixer</button>
+    </aside>
+    <main class="main" id="main">
+      <div class="empty">Select a sound on the left, or create one — then reference its id in a "Play Sound" action.</div>
+    </main>
+  </div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
