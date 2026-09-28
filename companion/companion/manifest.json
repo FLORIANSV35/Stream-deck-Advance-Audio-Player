@@ -6,7 +6,7 @@
   "manufacturer": "SAAP",
   "products": ["SAAP Audio"],
   "keywords": ["audio", "sound", "player", "music", "stinger", "soundboard"],
-  "version": "26.9.98",
+  "version": "26.9.100",
   "license": "MIT",
   "repository": "git+https://github.com/FLORIANSV35/Stream-deck-Advance-Audio-Player.git",
   "bugs": "https://github.com/FLORIANSV35/Stream-deck-Advance-Audio-Player/issues",
