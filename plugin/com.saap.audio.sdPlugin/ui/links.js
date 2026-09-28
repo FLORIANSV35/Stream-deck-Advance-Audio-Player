@@ -48,7 +48,9 @@
   document.querySelectorAll(".sub[data-file]").forEach((el) => {
     const n = Number(el.dataset.file);
     const show = (v) => { el.textContent = baseName(v) || "No file"; };
-    const [get] = useSettings(n === 1 ? "file" : "file" + n, show, 0);
+    const fileSetting = n === 1 ? "file" : "file" + n;
+    const [get] = useSettings(fileSetting, show, 0);
     get().then(show);
+    watch(fileSetting, show);
   });
 })();
