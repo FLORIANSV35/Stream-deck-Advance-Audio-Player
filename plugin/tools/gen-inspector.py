@@ -40,7 +40,8 @@ def card(badge, title, body, *, open=False, cls="", sub="", tag="", subattr="", 
 def track_fields(n):
     k = lambda name: name if n == 1 else f"{name}{n}"
     link = lambda kind: "" if n == 1 else f' data-link="{kind}"'
-    out = item("File", f'<sdpi-file setting="{k("file")}" accept="{AUDIO}"></sdpi-file>')
+    out = item("File", f'<div class="filerow-narrow"><sdpi-file setting="{k("file")}" accept="{AUDIO}"></sdpi-file>'
+               f'<button type="button" class="clear-file" data-n="{n}" title="Remove this track\'s file, trim, and loop points">Clear</button></div>')
     out += item("Waveform", f'<div class="wave" data-n="{n}"></div>')
     out += item("Outputs", f'<div class="outpick" data-n="{n}"></div>')
     out += item("Volume", f'<sdpi-range setting="{k("volume")}" min="0" max="200" step="1" default="100" showlabels></sdpi-range>', link("volume"))
@@ -98,7 +99,7 @@ def play():
         item("Status", '<span id="net-status" class="updcur">…</span>'),
         cls="plain")
     body += '  <sdpi-note>On the other computer, add a <b>Remote Trigger</b> key and enter this computer\'s address, the port above, and the same passphrase.</sdpi-note>\n'
-    return page("Play sounds", "Up to 6 tracks, synchronized to the millisecond", body, ["waveform.js", "outputs.js", "links.js", "wide.js", "update.js", "network.js"])
+    return page("Play sounds", "Up to 6 tracks, synchronized to the millisecond", body, ["waveform.js", "outputs.js", "links.js", "wide.js", "update.js", "network.js", "clear.js"])
 
 def volume():
     body = '  <h2 class="section">Setting</h2>\n' + card("♪", "Live volume",

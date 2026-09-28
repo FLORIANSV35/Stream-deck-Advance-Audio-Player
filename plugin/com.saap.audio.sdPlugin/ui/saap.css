@@ -111,6 +111,13 @@ body { overflow-x: hidden; }
 .updcheck input { accent-color: #22c55e; margin: 0; }
 .updcur { display: inline-block; padding-top: 5px; color: #8b93a3; }
 
+/* a track's File field + its "Clear" button (large editor: wraps that field's own .filerow, from Browse…) */
+.filerow-narrow { display: flex; align-items: center; gap: 8px; width: 100%; }
+.filerow-narrow > sdpi-file, .filerow-narrow > .filerow { flex: 1; min-width: 0; }
+.clear-file { flex: none; padding: 0 12px; height: var(--input-height); border: 1px solid #3f2020; border-radius: 3px;
+  background: #241515; color: #f2a5a5; font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
+.clear-file:hover { background: #341c1c; }
+
 /* plain <input> used for global (non-per-key) settings, e.g. Updates and Network control */
 .plain-input { width: 100%; height: var(--input-height); padding: 0 10px; border: 1px solid #2f3540; border-radius: 3px;
   background: var(--input-bg-color); color: var(--input-font-color); font: inherit; font-size: 10pt; }
