@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { InstanceBase, InstanceStatus, type JsonObject } from "@companion-module/base";
+import { InstanceBase, InstanceStatus, runEntrypoint } from "@companion-module/base";
 import { getActionDefinitions } from "./actions.js";
 import { type SaapConfig, getConfigFields } from "./config.js";
 import { EditorServer } from "./editor-server.js";
@@ -28,16 +28,14 @@ const packageRoot = findPackageRoot();
 /** Plays multi-track synchronized sounds directly from Companion — see companion/HELP.md for the full picture.
  * Embeds the same native audio engine as the SAAP Audio Stream Deck plugin (companion/src/engine.ts), and serves
  * a local web page for the actual sound settings (companion/src/editor-server.ts), since Companion actions only
- * offer plain fields. Companion constructs this class itself (via the internal context passed to the base
- * constructor) once it loads this file as the module's entrypoint — no explicit bootstrap call needed here. */
-export default class SaapAudioInstance extends InstanceBase {
+ * offer plain fields. */
+class SaapAudioInstance extends InstanceBase<SaapConfig> {
   #engine?: Engine;
   #store?: Store;
   #player?: Player;
   #editor?: EditorServer;
 
-  async init(configRaw: JsonObject, _isFirstInit: boolean, _secrets: JsonObject | undefined): Promise<void> {
-    const config = configRaw as SaapConfig;
+  async init(config: SaapConfig): Promise<void> {
     if (process.platform !== "darwin" && process.platform !== "win32") {
       this.updateStatus(InstanceStatus.BadConfig, "SAAP Audio only ships an engine for macOS and Windows");
       return;
@@ -70,7 +68,7 @@ export default class SaapAudioInstance extends InstanceBase {
     setTimeout(() => player.prewarmAll(), 500);
   }
 
-  async configUpdated(_config: JsonObject, _secrets: JsonObject | undefined): Promise<void> {
+  async configUpdated(_config: SaapConfig): Promise<void> {
     // dataDir changes only take effect on the next restart (Companion restarts an instance when its config
     // changes, which re-runs init() from scratch — nothing to do here).
   }
@@ -85,3 +83,5 @@ export default class SaapAudioInstance extends InstanceBase {
     this.#store?.flush();
   }
 }
+
+runEntrypoint(SaapAudioInstance, []);
