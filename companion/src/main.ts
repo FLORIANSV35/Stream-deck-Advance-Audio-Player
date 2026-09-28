@@ -52,14 +52,14 @@ class SaapAudioInstance extends InstanceBase<SaapConfig> {
 
     const player = new Player(engine, store, (msg) => this.log("info", msg));
     this.#player = player;
-    player.on("changed", () => this.checkFeedbacks("is-playing", "is-paused"));
+    player.on("changed", () => this.checkFeedbacks("is-playing", "is-paused", "sound-title"));
     mixer.on("change", () => player.applyGains());
 
     const editor = new EditorServer(engine, store, player, join(packageRoot, "web"), join(dataDir, "uploads"));
     this.#editor = editor;
 
     this.setActionDefinitions(getActionDefinitions(player, store, editor));
-    this.setFeedbackDefinitions(getFeedbackDefinitions(player));
+    this.setFeedbackDefinitions(getFeedbackDefinitions(player, store));
     this.setPresetDefinitions(getPresetDefinitions());
 
     this.updateStatus(InstanceStatus.Connecting, "Starting the audio engine…");

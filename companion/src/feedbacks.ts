@@ -1,10 +1,21 @@
 import { combineRgb, type CompanionFeedbackDefinitions } from "@companion-module/base";
 import type { Player } from "./player.js";
+import type { Store } from "./store.js";
 
 const soundIdField = { id: "soundId", type: "textinput" as const, label: "Sound", default: "" };
 
-export function getFeedbackDefinitions(player: Player): CompanionFeedbackDefinitions {
+export function getFeedbackDefinitions(player: Player, store: Store): CompanionFeedbackDefinitions {
   return {
+    "sound-title": {
+      type: "advanced",
+      name: "Sound Title (shows the sound's label on the button)",
+      options: [soundIdField],
+      callback: (feedback) => {
+        const id = String(feedback.options.soundId ?? "").trim();
+        if (!id) return {};
+        return { text: store.sound(id).label || id };
+      },
+    },
     "is-playing": {
       type: "boolean",
       name: "Sound is playing",

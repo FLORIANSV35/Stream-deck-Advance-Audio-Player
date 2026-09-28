@@ -54,6 +54,7 @@ export function getPresetDefinitions(): CompanionPresetDefinitions {
       name: "Play Sound",
       style: { text: "Play\nSound", size: "14", color: IDLE_TEXT, bgcolor: IDLE_BG },
       feedbacks: [
+        { feedbackId: "sound-title", options: { soundId: "" } },
         { feedbackId: "is-playing", options: { soundId: "" }, style: { bgcolor: GREEN, color: GREEN_TEXT } },
         { feedbackId: "is-paused", options: { soundId: "" }, style: { bgcolor: AMBER, color: AMBER_TEXT } },
       ],

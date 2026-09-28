@@ -45,6 +45,8 @@ which sound (by id) to play, stop, pause, etc. One upside: several buttons can s
 
 ## Feedbacks
 
+- **Sound Title** — replaces the button's text with that sound's own title (the "Label" field in the web editor),
+  or its id if no title was given. Already on the **Play Sound** preset; add it to any other button yourself.
 - **Sound is playing** / **Sound is paused** — both take a Sound id, for coloring a button by that sound's state.
 
 ## Known limitations vs. the Stream Deck plugin

@@ -216,5 +216,6 @@ export class Player extends EventEmitter<PlayerEvents> {
       p.settings = { ...p.settings, volume: trackSettings(s, n).volume, group: s.group };
       this.#engine.volume(p.id, gainFor(p.settings));
     }
+    this.emit("changed", soundId);
   }
 }
