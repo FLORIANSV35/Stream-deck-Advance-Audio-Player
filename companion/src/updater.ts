@@ -3,9 +3,6 @@ import { join } from "node:path";
 import type { Store } from "./store.js";
 
 const REPO = "FLORIANSV35/Stream-deck-Advance-Audio-Player";
-// releases of this module are tagged separately from the Stream Deck plugin's own "vX.Y.Z" tags, since they
-// version independently — see the root README/release workflow for the plugin's own tag scheme
-const TAG_PREFIX = "companion-v";
 const DAY = 24 * 60 * 60 * 1000;
 
 export interface UpdateInfo {
@@ -23,10 +20,10 @@ export function isNewer(a: string, b: string): boolean {
 }
 
 /**
- * Looks for a newer release of this module on GitHub — same idea as the Stream Deck plugin's own updater.ts, but
- * simpler: there's no way for a Companion module to install itself the way a double-clicked .streamDeckPlugin
- * does, so this only ever links to the release page for a manual re-import, and checks releases tagged
- * "companion-v*" specifically (the plugin's own "vX.Y.Z" releases are a separate, unrelated version line). The
+ * Looks for a newer release of this module on GitHub — same idea as the Stream Deck plugin's own updater.ts, and
+ * the same releases too (the plugin and this module are versioned and released together, one release per tag,
+ * each with its own asset), just simpler: there's no way for a Companion module to install itself the way a
+ * double-clicked .streamDeckPlugin does, so this only ever links to the release page for a manual re-import. The
  * check is one anonymous request to github.com and can be switched off (see setEnabled).
  */
 export class Updater {
@@ -65,16 +62,14 @@ export class Updater {
 
   async #fetch(): Promise<void> {
     try {
-      const res = await fetch(`https://api.github.com/repos/${REPO}/releases`, {
+      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
         headers: { Accept: "application/vnd.github+json", "User-Agent": "saap-audio-companion-module" },
         signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) return;
-      const releases = (await res.json()) as { tag_name?: string; html_url?: string; draft?: boolean; prerelease?: boolean }[];
-      const match = releases.find((r) => !r.draft && !r.prerelease && r.tag_name?.startsWith(TAG_PREFIX));
-      const version = match?.tag_name?.slice(TAG_PREFIX.length);
-      if (!version || !isNewer(version, this.#currentVersion)) { this.#latest = null; return; }
-      this.#latest = { version, page: match!.html_url ?? `https://github.com/${REPO}/releases` };
+      const r = (await res.json()) as { tag_name?: string; html_url?: string };
+      if (!r.tag_name || !isNewer(r.tag_name, this.#currentVersion)) { this.#latest = null; return; }
+      this.#latest = { version: r.tag_name.replace(/^v/, ""), page: r.html_url ?? `https://github.com/${REPO}/releases` };
     } catch {
       // an unreachable github.com (offline, blocked, rate-limited) just means no update is offered this time
     }

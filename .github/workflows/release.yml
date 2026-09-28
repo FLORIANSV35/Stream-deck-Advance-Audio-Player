@@ -92,3 +92,38 @@ jobs:
           case "$GITHUB_REF_NAME" in *-*) FLAGS="--prerelease" ;; esac
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "$GITHUB_REF_NAME" --generate-notes $FLAGS
           gh release upload "$GITHUB_REF_NAME" dist/com.saap.audio.streamDeckPlugin --clobber
+
+  companion-package:
+    # depends on "package" too (not just the two engine jobs) so the release already exists by the time this
+    # job's own upload step runs, instead of racing "package" to create it
+    needs: [engine-mac, engine-windows, package]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: engine-mac
+          path: companion/bin
+      - uses: actions/download-artifact@v4
+        with:
+          name: engine-windows
+          path: companion/bin
+      - name: Package the Companion module
+        run: |
+          chmod +x companion/bin/saap-engine
+          cd companion
+          npm ci
+          npx tsc -p tsconfig.json
+          npx companion-module-build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: companion-module
+          path: companion/*.tgz
+      - name: Attach to the same release as the Stream Deck plugin (on a tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" companion/*.tgz --clobber
