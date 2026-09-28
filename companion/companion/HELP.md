@@ -38,7 +38,8 @@ which sound (by id) to play, stop, pause, etc. One upside: several buttons can s
 - **Play Sound** — starts every track of a sound that has a file, all in sync. If it's already playing, its
   "On press while playing" setting (in the web editor) decides what a second press does: restart, stop, or
   pause/resume.
-- **Stop**, **Pause / Resume** — target one sound by id.
+- **Stop** — targets one sound by id, or every sound when left blank (same fade for either).
+- **Pause / Resume** — targets one sound by id.
 - **Stop All**, **Skip forward / back**, **Exit Loop** — target a group (set per-sound in the web editor), or
   every sound when left blank.
 - **Set Loop Point** — while a sound is playing, captures its current position as that sound's loop-in or

@@ -55,14 +55,16 @@ export function getActionDefinitions(player: Player, store: Store, editor: Edito
     stop: {
       name: "Stop",
       options: [
-        soundIdField,
+        { ...soundIdField, tooltip: "Leave blank to stop every sound instead. " + soundIdField.tooltip },
         { id: "fade", type: "number", label: "Fade out (s)", default: 0, min: 0, max: 30, step: 0.1 },
       ],
       subscribe: soundIdSubscribe,
       learn: soundIdLearn,
       callback: async (action) => {
         const soundId = String(action.options.soundId ?? "").trim();
-        if (soundId) player.stop(soundId, Number(action.options.fade ?? 0));
+        const fade = Number(action.options.fade ?? 0);
+        if (soundId) player.stop(soundId, fade);
+        else player.stopAll(fade);
       },
     },
     "pause-resume": {
