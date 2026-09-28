@@ -151,10 +151,10 @@ function renderTrack(soundId, s, n) {
         <button type="button" class="clear-file">Clear</button>
       </div>
       <div class="wave"><canvas></canvas>
-        <div class="wave-sliders">
-          <label class="wz-row"><span>Zoom</span><input type="range" class="wz-zoom" min="0" max="100" value="0" step="1" disabled>
-            <button type="button" class="wz-fit">Fit</button></label>
-          <label class="wz-row"><span>Position</span><input type="range" class="wz-pos" min="0" max="100" value="0" step="1" disabled></label>
+        <div class="wave-controls">
+          <input type="range" class="wz-zoom" min="0" max="100" value="0" step="1" disabled title="Zoom">
+          <input type="range" class="wz-pos" min="0" max="100" value="0" step="1" disabled title="Position">
+          <button type="button" class="wz-fit">Fit</button>
         </div>
         <div class="wave-info"></div>
       </div>
