@@ -25,17 +25,17 @@
   function init(root) {
     const n = Number(root.dataset.n);
     root.innerHTML =
-      '<canvas></canvas><div class="wave-zoom">' +
-      '<button type="button" class="wz-out" title="Zoom out">−</button>' +
-      '<button type="button" class="wz-fit" title="Show the whole file">Fit</button>' +
-      '<button type="button" class="wz-in" title="Zoom in">+</button>' +
+      '<canvas></canvas>' +
+      '<div class="wave-sliders">' +
+      '<label class="wz-row"><span>Zoom</span><input type="range" class="wz-zoom" min="0" max="100" value="0" step="1" disabled>' +
+      '<button type="button" class="wz-fit" title="Show the whole file">Fit</button></label>' +
+      '<label class="wz-row"><span>Position</span><input type="range" class="wz-pos" min="0" max="100" value="0" step="1" disabled></label>' +
       "</div>" +
-      '<div class="wave-scroll" hidden><div class="wave-thumb"></div></div>' +
       '<div class="wave-info"></div>';
     const canvas = root.querySelector("canvas");
     const info = root.querySelector(".wave-info");
-    const scrollbar = root.querySelector(".wave-scroll");
-    const thumb = root.querySelector(".wave-thumb");
+    const zoomSlider = root.querySelector(".wz-zoom");
+    const posSlider = root.querySelector(".wz-pos");
     const ctx = canvas.getContext("2d");
     // Slave track: trim and loop points can each be linked to track 1 independently.
     const st = {
@@ -165,7 +165,6 @@
       draw();
       scheduleZoomFetch();
     }
-    const zoomBy = (factor, centerT) => zoomTo(viewLen() * factor, centerT ?? (st.viewStart + st.viewEnd) / 2);
     const panTo = (start) => {
       const width = viewLen();
       st.viewStart = Math.max(0, Math.min(st.duration - width, start));
@@ -173,6 +172,26 @@
       draw();
       scheduleZoomFetch();
     };
+
+    // zoom/position sliders: 0-100 mapped onto [MIN_VIEW, duration] and [0, duration-viewLen] respectively,
+    // instead of the mouse wheel (fiddly, and fights the panel's own scrolling) or a hand-dragged scrollbar
+    const zoomPctFromWidth = (width) => {
+      const min = MIN_VIEW(), max = st.duration;
+      return max > min ? Math.max(0, Math.min(100, Math.round(((max - width) / (max - min)) * 100))) : 0;
+    };
+    const widthFromZoomPct = (pct) => st.duration - (st.duration - MIN_VIEW()) * (Math.max(0, Math.min(100, pct)) / 100);
+    const panPctFromStart = (start) => {
+      const span = st.duration - viewLen();
+      return span > 0.001 ? Math.max(0, Math.min(100, Math.round((start / span) * 100))) : 0;
+    };
+    const startFromPanPct = (pct) => (st.duration - viewLen()) * (Math.max(0, Math.min(100, pct)) / 100);
+    function syncSliders() {
+      zoomSlider.disabled = !st.peaks;
+      zoomSlider.value = st.peaks ? zoomPctFromWidth(viewLen()) : 0;
+      const zoomed = viewLen() < st.duration - 0.01;
+      posSlider.disabled = !st.peaks || !zoomed;
+      posSlider.value = st.peaks ? panPctFromStart(st.viewStart) : 0;
+    }
 
     // re-request peaks scoped to the current view once zooming/panning settles, at a resolution matching the
     // canvas's actual pixel width — the coarse 600-point array (spanning the whole file) is otherwise all a
@@ -198,6 +217,7 @@
         ctx.fillStyle = "#6b7383"; ctx.font = "12px -apple-system, sans-serif"; ctx.textAlign = "center";
         ctx.fillText(st.msg, w / 2, h / 2 + 4);
         info.textContent = "";
+        syncSliders();
         return;
       }
       const a = xOf(Math.min(st.tin, st.duration)), b = xOf(outTime());
@@ -255,12 +275,7 @@
       const zoomInfo = zoomed ? ` · Zoomed ${fmt(st.viewStart)}–${fmt(st.viewEnd)}` : "";
       info.textContent = linkedInfo + `Start ${fmt(st.tin)} · End ${fmt(outTime())} · Length ${fmt(outTime() - st.tin)} / ${fmt(st.duration)}${loopInfo}${zoomInfo}`;
 
-      scrollbar.hidden = !zoomed;
-      if (zoomed) {
-        const tw = Math.max(16, (viewLen() / st.duration) * w);
-        thumb.style.width = `${tw}px`;
-        thumb.style.left = `${(st.viewStart / st.duration) * (w - tw)}px`;
-      }
+      syncSliders();
     }
 
     let drag = null;
@@ -288,28 +303,16 @@
     canvas.addEventListener("dblclick", () => {
       if (st.trimLinked) return; st.tin = 0; st.tout = 0; draw(); commit(); }); // double-click: whole file
 
-    // zoom: mouse wheel over the waveform (centered on the cursor), or the +/−/Fit buttons (centered on the
-    // middle of the current view); a thin scrollbar appears once zoomed in, its thumb draggable to pan
-    canvas.addEventListener("wheel", (e) => {
+    // zoom/pan: explicit sliders only — no mouse wheel (fights the panel's own scrolling) and no drag-to-pan
+    zoomSlider.addEventListener("input", () => {
       if (!st.peaks) return;
-      e.preventDefault();
-      zoomBy(e.deltaY > 0 ? 1.25 : 0.8, tOf(posX(e)));
-    }, { passive: false });
-    root.querySelector(".wz-in").addEventListener("click", () => zoomBy(0.5));
-    root.querySelector(".wz-out").addEventListener("click", () => zoomBy(2));
-    root.querySelector(".wz-fit").addEventListener("click", () => zoomTo(st.duration, st.duration / 2));
-
-    let panDrag = null;
-    thumb.addEventListener("pointerdown", (e) => {
-      panDrag = { startX: e.clientX, startView: st.viewStart };
-      thumb.setPointerCapture(e.pointerId);
+      zoomTo(widthFromZoomPct(Number(zoomSlider.value)), (st.viewStart + st.viewEnd) / 2);
     });
-    thumb.addEventListener("pointermove", (e) => {
-      if (!panDrag) return;
-      const w = canvas.clientWidth || 1;
-      panTo(panDrag.startView + ((e.clientX - panDrag.startX) / w) * st.duration);
+    posSlider.addEventListener("input", () => {
+      if (!st.peaks) return;
+      panTo(startFromPanPct(Number(posSlider.value)));
     });
-    thumb.addEventListener("pointerup", () => { panDrag = null; });
+    root.querySelector(".wz-fit").addEventListener("click", () => { if (st.peaks) zoomTo(st.duration, st.duration / 2); });
 
     function move(x) {
       const t = tOf(x), min = 0.05;
