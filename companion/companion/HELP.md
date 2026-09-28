@@ -6,10 +6,12 @@ now running directly inside Companion. No Stream Deck required.
 
 ## Getting started
 
-1. Add this connection. Its status line shows a URL once it starts, like `Editor: http://127.0.0.1:PORT/TOKEN/`.
-2. Open that URL in a browser on the **same computer** Companion is running on. Click **+ New sound**, give it an
-   id (e.g. `applause`), and set up its file, output, volume, fades, trim and loop points there — the waveform,
-   drag-and-drop, and the **Browse…** button all work exactly like the Stream Deck plugin's own editor.
+1. Add this connection, then add the **Open Sound Editor** action to any button and press it — it opens the
+   editor in your default browser. (Its URL is also shown in this connection's status, like
+   `Editor: http://127.0.0.1:PORT/TOKEN/`, if you'd rather open it by hand.)
+2. On that page, click **+ New sound**, give it an id (e.g. `applause`), and set up its file, output, volume,
+   fades, trim and loop points there — the waveform, drag-and-drop, and the **Browse…** button all work exactly
+   like the Stream Deck plugin's own editor.
 3. On a button, add the **Play Sound** action and type that same id into its **Sound** field. Press the button.
 
 ## Why a separate web page?
@@ -21,6 +23,8 @@ which sound (by id) to play, stop, pause, etc. One upside: several buttons can s
 
 ## Actions
 
+- **Open Sound Editor** — opens the web editor in the default browser. Put this on a button for one-click access
+  instead of copying the URL from the connection's status.
 - **Play Sound** — starts every track of a sound that has a file, all in sync. If it's already playing, its
   "On press while playing" setting (in the web editor) decides what a second press does: restart, stop, or
   pause/resume.

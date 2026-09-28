@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -77,6 +78,14 @@ export class EditorServer {
   /** The one URL to open — put in the module's status text and log. */
   url(): string {
     return `http://127.0.0.1:${this.#port}/${this.#token}/`;
+  }
+
+  /** Opens the editor in the system's default browser — the "Open Sound Editor" action's whole job, since
+   * Companion's own UI otherwise only ever shows this URL as plain status text. */
+  open(): void {
+    const url = this.url();
+    const [cmd, args] = process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : ["open", [url]];
+    execFile(cmd, args, () => {});
   }
 
   #allowedHost(req: IncomingMessage): boolean {

@@ -57,7 +57,7 @@ class SaapAudioInstance extends InstanceBase<SaapConfig> {
     const editor = new EditorServer(engine, store, player, join(packageRoot, "web"), join(dataDir, "uploads"));
     this.#editor = editor;
 
-    this.setActionDefinitions(getActionDefinitions(player, store));
+    this.setActionDefinitions(getActionDefinitions(player, store, editor));
     this.setFeedbackDefinitions(getFeedbackDefinitions(player));
 
     this.updateStatus(InstanceStatus.Connecting, "Starting the audio engine…");

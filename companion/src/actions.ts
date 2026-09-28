@@ -1,4 +1,5 @@
 import type { CompanionActionDefinitions } from "@companion-module/base";
+import type { EditorServer } from "./editor-server.js";
 import { mixer } from "./mixer.js";
 import type { Player } from "./player.js";
 import { keyOf, playbacks, trackOf } from "./registry.js";
@@ -24,8 +25,13 @@ const groupField = {
  * Play Sound, Stop, Pause/Resume, Stop All, Skip, Exit Loop, Set Loop Point, Set Volume. Every action beyond
  * "Play Sound" is scoped either to one sound (by the id the web editor gave it) or to a group of sounds, exactly
  * like the plugin's own group-scoped control keys. */
-export function getActionDefinitions(player: Player, store: Store): CompanionActionDefinitions {
+export function getActionDefinitions(player: Player, store: Store, editor: EditorServer): CompanionActionDefinitions {
   return {
+    "open-editor": {
+      name: "Open Sound Editor",
+      options: [],
+      callback: async () => editor.open(),
+    },
     "play-sound": {
       name: "Play Sound",
       options: [soundIdField],
