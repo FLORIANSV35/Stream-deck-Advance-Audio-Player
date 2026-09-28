@@ -15,15 +15,22 @@ import { Store } from "./store.js";
 import { Updater } from "./updater.js";
 
 /**
- * Where bin/ (the bundled native engine) and web/ (the editor's static files) live, relative to this running
- * script. companion-module-build bundles main.js straight into the package root, so bin/ and web/ end up as its
- * siblings once packaged — but in an unpackaged dev checkout, tsc instead emits to dist/main.js, one level below
- * the actual package root where bin/ and web/ were copied by build.sh. Checking both keeps `npm run dev-build`
- * (no packaging step) and a real packaged install both working without a special-cased dev copy step.
+ * Where bin/ (the bundled native engine) and web/ (the editor's static files) live. Companion sets a spawned
+ * module's cwd to that module's own install directory (confirmed via `lsof -p <pid>` against a real running
+ * instance), which is the one reliable source here — `import.meta.url` looks like the obvious choice, but
+ * webpack (companion-module-build's bundler for this API version) resolves it at *build* time and bakes in the
+ * literal absolute path main.ts was compiled from, on the machine that ran the build. Once packaged and
+ * installed on any other machine (or even the same machine, once Companion extracts its own copy under
+ * ~/Library/Application Support/companion/modules/), that path no longer exists — every subsequent readFile()
+ * against it fails, and the editor's whole page 404s. import.meta.url is kept only as a fallback for `tsc`+`node
+ * dist/main.js` run directly during development with an unexpected cwd.
  */
 function findPackageRoot(): string {
   const scriptDir = dirname(fileURLToPath(import.meta.url));
-  return existsSync(join(scriptDir, "bin")) || existsSync(join(scriptDir, "web")) ? scriptDir : join(scriptDir, "..");
+  for (const dir of [process.cwd(), scriptDir, join(scriptDir, "..")]) {
+    if (existsSync(join(dir, "bin")) && existsSync(join(dir, "web"))) return dir;
+  }
+  return process.cwd();
 }
 const packageRoot = findPackageRoot();
 

@@ -117,7 +117,7 @@ export class EditorServer {
     const url = new URL(req.url ?? "/", `http://127.0.0.1:${this.#port}`);
     const parts = url.pathname.split("/").filter(Boolean);
     const [token, ...rest] = parts;
-    if (!token || !this.#tokenOk(token)) return this.#json(res, 404, { error: "not found" });
+    if (!token || !this.#tokenOk(token)) return this.#json(res, 404, { error: "invalid token" });
     try {
       if (rest[0] === "api") return await this.#api(req, res, url, rest.slice(1));
       const name = rest.length === 0 ? "index.html" : rest.join("/");
@@ -127,8 +127,10 @@ export class EditorServer {
       const file = await readFile(join(this.#webDir, name));
       res.writeHead(200, { "content-type": type, "cache-control": "no-store" });
       res.end(file);
-    } catch {
-      this.#json(res, 404, { error: "not found" });
+    } catch (e) {
+      // distinct from the plain 404s above: this is the file actually failing to read (wrong webDir, permission
+      // issue, packaging bug — see main.ts's findPackageRoot) rather than a simple "no such route"
+      this.#json(res, 404, { error: `file read failed: ${(e as Error).message}` });
     }
   }
 
