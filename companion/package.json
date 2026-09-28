@@ -1,0 +1,22 @@
+{
+  "name": "companion-module-saap-audio",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "companion-module-build",
+    "dev-build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@companion-module/base": "^1.14.1",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@companion-module/tools": "^2.8.0",
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.2"
+  }
+}
