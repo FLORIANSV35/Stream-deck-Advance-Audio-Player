@@ -261,9 +261,12 @@
           ctx.beginPath(); ctx.moveTo(x - 5, 0); ctx.lineTo(x + 5, 0); ctx.lineTo(x, 9); ctx.closePath(); ctx.fill();
         }
       }
-      // playhead: only while actually playing, and only when it falls within the current (possibly zoomed) view
-      if (st.playing && st.pos >= st.viewStart && st.pos <= st.viewEnd) {
-        const x = xOf(st.pos);
+      // playhead: only while actually playing, and only when it falls within the current (possibly zoomed) view.
+      // The engine reports pos as elapsed time since trim-in, not since the start of the file — offset it back
+      // to absolute file time before placing it on an axis that spans the whole file.
+      const absPos = st.tin + st.pos;
+      if (st.playing && absPos >= st.viewStart && absPos <= st.viewEnd) {
+        const x = xOf(absPos);
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(x - 0.75, 0, 1.5, h);
         ctx.beginPath(); ctx.moveTo(x - 4, 0); ctx.lineTo(x + 4, 0); ctx.lineTo(x, 6); ctx.closePath(); ctx.fill();
