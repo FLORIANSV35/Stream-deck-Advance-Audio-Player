@@ -22,7 +22,7 @@ import { isGroupsEvent, normGroup, replyToInspector, sendGroups } from "../group
 import { mixer } from "../mixer.js";
 import { outputItems, trackOutputs } from "../outputs.js";
 import { allPlayKeySettings } from "../profiles.js";
-import { playbacks, gainFor, inGroup, ctxOf, type Playback } from "../registry.js";
+import { playbacks, gainFor, inGroup, ctxOf, trackOf, type Playback } from "../registry.js";
 import { fmtTime, loadingKey, playKey, type PlayView } from "../render.js";
 import { MAX_TRACKS, seconds, trackSettings, type PlaySettings } from "../settings.js";
 
@@ -82,6 +82,23 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     return { event: "keys", items: this.listKeys() };
   }
 
+  /** Tells this key's settings panel (and large editor) a track's live playback position, so the waveform can
+   * draw a playhead — a track with several outputs only ever reports its first one. `track` limits this to a
+   * single track (e.g. the one that just started or ended); omitted, every track of the key is sent. */
+  #pushPosition(ctx: string, track?: number): void {
+    const byTrack = new Map<number, Playback>();
+    for (const p of tracksOf(ctx)) {
+      const n = trackOf(p.id);
+      if (!byTrack.has(n)) byTrack.set(n, p);
+    }
+    for (const n of track !== undefined ? [track] : [...byTrack.keys()]) {
+      const p = byTrack.get(n);
+      const payload = { event: "position", track: n, playing: !!p && p.state === "playing", pos: p?.pos ?? 0, dur: p?.dur ?? 0 };
+      void replyToInspector(payload);
+      this.#editor.broadcast(payload);
+    }
+  }
+
   /** Large settings page opened in the browser (see EditorServer). */
   #editor = new EditorServer(
     {
@@ -105,20 +122,23 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     playAction = this;
     engine.on("started", (id, dur) => {
       const p = playbacks.get(id);
-      if (p) { p.dur = dur; this.#render(ctxOf(id)); }
+      if (p) { p.dur = dur; this.#render(ctxOf(id)); this.#pushPosition(ctxOf(id), trackOf(id)); }
     });
     engine.on("state", (id, state, pos, dur, looping, exiting) => {
       const p = playbacks.get(id);
       if (!p) return;
       p.state = state; p.pos = pos; p.dur = dur; p.looping = looping; p.exiting = exiting;
       this.#render(ctxOf(id));
+      this.#pushPosition(ctxOf(id), trackOf(id));
     });
     engine.on("ended", (id, reason, message) => {
+      const ctx = ctxOf(id), n = trackOf(id);
       playbacks.delete(id);
-      this.#render(ctxOf(id));
+      this.#render(ctx);
+      this.#pushPosition(ctx, n);
       if (reason === "error") {
         streamDeck.logger.error(`Playback ${id}: ${message}`);
-        void this.#keys.get(ctxOf(id))?.showAlert();
+        void this.#keys.get(ctx)?.showAlert();
       }
     });
     engine.on("preloaded", (file) => this.#markWarm(`file:${file}`));

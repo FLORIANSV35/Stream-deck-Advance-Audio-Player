@@ -49,6 +49,8 @@
       get lout() { return this.loopLinked ? this.mLoopOut : this.ownLoopOut; }, set lout(v) { this.ownLoopOut = v; },
       // visible time range (zoom): [0, duration] until zoomed in
       viewStart: 0, viewEnd: 0,
+      // live playback position, pushed by the plugin while this track is playing (see PlayAction#pushPosition)
+      playing: false, pos: 0,
     };
 
     // no debounce: settings are saved when the handle is released
@@ -101,7 +103,13 @@
 
     sd.sendToPropertyInspector.subscribe((ev) => {
       const p = ev.payload;
-      if (!p || p.event !== "peaks" || p.track !== n || p.file !== st.file) return;
+      if (!p) return;
+      if (p.event === "position" && p.track === n) {
+        st.playing = p.playing; st.pos = p.pos;
+        draw();
+        return;
+      }
+      if (p.event !== "peaks" || p.track !== n || p.file !== st.file) return;
       if (p.error) { st.peaks = null; st.msg = p.error; }
       else { st.peaks = p.peaks; st.duration = p.duration; st.msg = ""; st.viewStart = 0; st.viewEnd = p.duration; }
       draw();
@@ -202,6 +210,13 @@
           ctx.fillStyle = "#f59e0b";
           ctx.beginPath(); ctx.moveTo(x - 5, 0); ctx.lineTo(x + 5, 0); ctx.lineTo(x, 9); ctx.closePath(); ctx.fill();
         }
+      }
+      // playhead: only while actually playing, and only when it falls within the current (possibly zoomed) view
+      if (st.playing && st.pos >= st.viewStart && st.pos <= st.viewEnd) {
+        const x = xOf(st.pos);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(x - 0.75, 0, 1.5, h);
+        ctx.beginPath(); ctx.moveTo(x - 4, 0); ctx.lineTo(x + 4, 0); ctx.lineTo(x, 6); ctx.closePath(); ctx.fill();
       }
       const linkedBits = [st.trimLinked && "trim", st.loopLinked && "loop"].filter(Boolean);
       const linkedInfo = linkedBits.length ? `${linkedBits.join(" & ")} linked to track 1 · ` : "";
