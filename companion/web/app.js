@@ -148,10 +148,14 @@ function renderTrack(soundId, s, n) {
       <div class="filerow">
         <input class="f-file" placeholder="Path to an audio file" />
         <button type="button" class="browse">Browse…</button>
+        <button type="button" class="clear-file">Clear</button>
       </div>
       <div class="wave"><canvas></canvas>
-        <div class="wave-zoom"><button type="button" class="wz-out">−</button><button type="button" class="wz-fit">Fit</button><button type="button" class="wz-in">+</button></div>
-        <div class="wave-scroll" hidden><div class="wave-thumb"></div></div>
+        <div class="wave-sliders">
+          <label class="wz-row"><span>Zoom</span><input type="range" class="wz-zoom" min="0" max="100" value="0" step="1" disabled>
+            <button type="button" class="wz-fit">Fit</button></label>
+          <label class="wz-row"><span>Position</span><input type="range" class="wz-pos" min="0" max="100" value="0" step="1" disabled></label>
+        </div>
         <div class="wave-info"></div>
       </div>
       <div class="grid3">
@@ -220,9 +224,6 @@ function renderTrack(soundId, s, n) {
     },
   });
   waveforms[n] = wf;
-  details.querySelector(".wz-in").addEventListener("click", () => wf.zoomIn());
-  details.querySelector(".wz-out").addEventListener("click", () => wf.zoomOut());
-  details.querySelector(".wz-fit").addEventListener("click", () => wf.zoomFit());
 
   function save() {
     s[fieldName("file", n)] = fileInput.value;
@@ -249,6 +250,17 @@ function renderTrack(soundId, s, n) {
   details.querySelector(".browse").addEventListener("click", async () => {
     const r = await api("api/browse", { method: "POST" });
     if (r.path) loadFile(r.path);
+  });
+  // removes this track's file and its trim/loop points; output, volume and fades are left alone — those are
+  // the track's own routing/level, not tied to which file happens to be loaded on it (same as the plugin's own
+  // "Clear" button)
+  details.querySelector(".clear-file").addEventListener("click", () => {
+    fileInput.value = ""; loopInput.checked = false;
+    trimInInput.value = ""; trimOutInput.value = ""; loopInInput.value = ""; loopOutInput.value = ""; loopFadeInput.value = "";
+    track.tin = 0; track.tout = 0; track.loopOn = false; track.lin = 0; track.lout = 0;
+    updateLoopVisibility();
+    save();
+    wf.setFile("", () => Promise.resolve(undefined));
   });
   outSelect.addEventListener("change", save);
   volumeInput.addEventListener("input", save);

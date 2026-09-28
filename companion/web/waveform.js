@@ -31,7 +31,6 @@ export function createWaveform(canvas, infoEl, track, opts) {
     draw();
     scheduleZoomFetch();
   }
-  const zoomBy = (factor, centerT) => zoomTo(viewLen() * factor, centerT ?? (track.viewStart + track.viewEnd) / 2);
   const panTo = (start) => {
     const width = viewLen();
     track.viewStart = Math.max(0, Math.min(track.duration - width, start));
@@ -39,6 +38,19 @@ export function createWaveform(canvas, infoEl, track, opts) {
     draw();
     scheduleZoomFetch();
   };
+
+  // zoom/position sliders: 0-100 mapped onto [MIN_VIEW, duration] and [0, duration-viewLen] respectively,
+  // instead of the mouse wheel (fiddly, and fights the page's own scrolling) or a hand-dragged scrollbar
+  const zoomPctFromWidth = (width) => {
+    const min = MIN_VIEW(), max = track.duration;
+    return max > min ? Math.max(0, Math.min(100, Math.round(((max - width) / (max - min)) * 100))) : 0;
+  };
+  const widthFromZoomPct = (pct) => track.duration - (track.duration - MIN_VIEW()) * (Math.max(0, Math.min(100, pct)) / 100);
+  const panPctFromStart = (start) => {
+    const span = track.duration - viewLen();
+    return span > 0.001 ? Math.max(0, Math.min(100, Math.round((start / span) * 100))) : 0;
+  };
+  const startFromPanPct = (pct) => (track.duration - viewLen()) * (Math.max(0, Math.min(100, pct)) / 100);
 
   function scheduleZoomFetch() {
     clearTimeout(zoomTimer);
@@ -138,24 +150,20 @@ export function createWaveform(canvas, infoEl, track, opts) {
   canvas.addEventListener("pointerup", () => { if (drag) { drag = null; opts.onCommit(); } });
   canvas.addEventListener("dblclick", () => { track.tin = 0; track.tout = 0; draw(); opts.onCommit(); });
 
-  canvas.addEventListener("wheel", (e) => {
+  // zoom/pan: explicit sliders only — no mouse wheel and no drag-to-pan
+  const waveEl = canvas.closest(".wave");
+  const zoomSlider = waveEl?.querySelector(".wz-zoom");
+  const posSlider = waveEl?.querySelector(".wz-pos");
+  const fitBtn = waveEl?.querySelector(".wz-fit");
+  zoomSlider?.addEventListener("input", () => {
     if (!track.peaks) return;
-    e.preventDefault();
-    zoomBy(e.deltaY > 0 ? 1.25 : 0.8, tOf(posX(e)));
-  }, { passive: false });
-
-  let panDrag = null;
-  const scrollbar = canvas.closest(".wave")?.querySelector(".wave-scroll");
-  const thumb = canvas.closest(".wave")?.querySelector(".wave-thumb");
-  if (thumb) {
-    thumb.addEventListener("pointerdown", (e) => { panDrag = { startX: e.clientX, startView: track.viewStart }; thumb.setPointerCapture(e.pointerId); });
-    thumb.addEventListener("pointermove", (e) => {
-      if (!panDrag) return;
-      const w = canvas.clientWidth || 1;
-      panTo(panDrag.startView + ((e.clientX - panDrag.startX) / w) * track.duration);
-    });
-    thumb.addEventListener("pointerup", () => { panDrag = null; });
-  }
+    zoomTo(widthFromZoomPct(Number(zoomSlider.value)), (track.viewStart + track.viewEnd) / 2);
+  });
+  posSlider?.addEventListener("input", () => {
+    if (!track.peaks) return;
+    panTo(startFromPanPct(Number(posSlider.value)));
+  });
+  fitBtn?.addEventListener("click", () => { if (track.peaks) zoomTo(track.duration, track.duration / 2); });
 
   function move(x) {
     const t = tOf(x), min = 0.05;
@@ -168,23 +176,18 @@ export function createWaveform(canvas, infoEl, track, opts) {
 
   new ResizeObserver(draw).observe(canvas);
 
-  function updateScrollbar() {
-    if (!scrollbar || !thumb) return;
+  function syncSliders() {
+    if (!zoomSlider || !posSlider) return;
+    zoomSlider.disabled = !track.peaks;
+    zoomSlider.value = track.peaks ? zoomPctFromWidth(viewLen()) : 0;
     const zoomed = viewLen() < track.duration - 0.01;
-    scrollbar.hidden = !zoomed;
-    if (zoomed) {
-      const w = canvas.clientWidth || 1;
-      const tw = Math.max(16, (viewLen() / track.duration) * w);
-      thumb.style.width = `${tw}px`;
-      thumb.style.left = `${(track.viewStart / track.duration) * (w - tw)}px`;
-    }
+    posSlider.disabled = !track.peaks || !zoomed;
+    posSlider.value = track.peaks ? panPctFromStart(track.viewStart) : 0;
   }
   const origDraw = draw;
   return {
-    draw: () => { origDraw(); updateScrollbar(); },
-    zoomFit: () => zoomTo(track.duration, track.duration / 2),
-    zoomIn: () => zoomBy(0.5),
-    zoomOut: () => zoomBy(2),
+    draw: () => { origDraw(); syncSliders(); },
+    zoomFit: () => { if (track.peaks) zoomTo(track.duration, track.duration / 2); },
     async setFile(file, fetchWholeFile) {
       track.file = file; track.peaks = null; track.duration = 0; track.zoomPeaks = null;
       track.msg = file ? "Analyzing file…" : "Choose a file";
