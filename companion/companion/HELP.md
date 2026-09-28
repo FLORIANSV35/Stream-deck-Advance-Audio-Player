@@ -15,6 +15,8 @@ now running directly inside Companion. No Stream Deck required.
 3. On a button, add the **Play Sound** action and type that same id into its **Sound** field. Press the button.
    (Or drag in the **Play Sound** preset from this connection's Presets tab — same dark/green/amber look as the
    Stream Deck plugin's own key, already wired with the is-playing/is-paused feedbacks, just fill in the Sound id.)
+4. Adding another Sound-id action or feedback to that same button (Stop, a feedback, …)? Click its **Learn**
+   button instead of retyping the id — it copies whatever Sound id is already set on that button.
 
 ## Presets
 

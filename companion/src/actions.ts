@@ -1,4 +1,5 @@
-import type { CompanionActionDefinitions } from "@companion-module/base";
+import type { CompanionActionDefinitions, CompanionActionInfo } from "@companion-module/base";
+import { lastSoundIdFor, rememberSoundId } from "./control-sound.js";
 import type { EditorServer } from "./editor-server.js";
 import { mixer } from "./mixer.js";
 import type { Player } from "./player.js";
@@ -10,7 +11,16 @@ const soundIdField = {
   type: "textinput" as const,
   label: "Sound",
   default: "",
-  tooltip: "The sound's id, as named on the web editor's sidebar — see the module's status for the editor's URL.",
+  tooltip: "The sound's id, as named on the web editor's sidebar — see the module's status for the editor's URL. " +
+    "Once set here, use \"Learn\" on a feedback (or another action) on the same button to copy it there too.",
+};
+
+/** Shared by every action that takes a Sound id: remembers it against this button (see control-sound.ts) so a
+ * feedback — or another action — on the same button can "Learn" it instead of the user retyping it. */
+const soundIdSubscribe = (action: CompanionActionInfo) => rememberSoundId(action.controlId, String(action.options.soundId ?? "").trim());
+const soundIdLearn = (action: CompanionActionInfo) => {
+  const soundId = lastSoundIdFor(action.controlId);
+  return soundId ? { ...action.options, soundId } : undefined;
 };
 
 const groupField = {
@@ -35,6 +45,8 @@ export function getActionDefinitions(player: Player, store: Store, editor: Edito
     "play-sound": {
       name: "Play Sound",
       options: [soundIdField],
+      subscribe: soundIdSubscribe,
+      learn: soundIdLearn,
       callback: async (action) => {
         const soundId = String(action.options.soundId ?? "").trim();
         if (soundId) player.press(soundId);
@@ -46,6 +58,8 @@ export function getActionDefinitions(player: Player, store: Store, editor: Edito
         soundIdField,
         { id: "fade", type: "number", label: "Fade out (s)", default: 0, min: 0, max: 30, step: 0.1 },
       ],
+      subscribe: soundIdSubscribe,
+      learn: soundIdLearn,
       callback: async (action) => {
         const soundId = String(action.options.soundId ?? "").trim();
         if (soundId) player.stop(soundId, Number(action.options.fade ?? 0));
@@ -54,6 +68,8 @@ export function getActionDefinitions(player: Player, store: Store, editor: Edito
     "pause-resume": {
       name: "Pause / Resume",
       options: [soundIdField],
+      subscribe: soundIdSubscribe,
+      learn: soundIdLearn,
       callback: async (action) => {
         const soundId = String(action.options.soundId ?? "").trim();
         if (soundId) player.pauseResume(soundId);
@@ -115,6 +131,8 @@ export function getActionDefinitions(player: Player, store: Store, editor: Edito
           choices: [{ id: "in", label: "Loop in" }, { id: "out", label: "Loop out" }],
         },
       ],
+      subscribe: soundIdSubscribe,
+      learn: soundIdLearn,
       callback: async (action) => {
         const soundId = String(action.options.soundId ?? "").trim();
         if (!soundId) return;
