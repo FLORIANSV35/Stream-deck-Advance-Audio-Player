@@ -525,22 +525,31 @@ static double hostDelay(uint64_t host) {
 
 #pragma mark - Waveform
 
-// Peak (max absolute value, all channels) of each slice of the file, for the waveform display.
-static NSDictionary *computePeaks(NSString *path, int n, id req) {
+// Peak (max absolute value, all channels) of each slice of a file, for the waveform display. `fromSec`/`toSec`
+// (<= 0 = start/end of file) restrict this to a sub-range, so the waveform can re-request just the zoomed-in
+// portion at a finer resolution instead of always covering the whole file at a fixed one (see PlayAction.ts).
+static NSDictionary *computePeaks(NSString *path, int n, id req, double fromSec, double toSec) {
     NSError *e = nil;
     AVAudioFile *f = [[AVAudioFile alloc] initForReading:[NSURL fileURLWithPath:path] error:&e];
     if (!f || f.length <= 0) return @{ @"evt": @"peaks", @"req": req, @"error": @"Unreadable file" };
     n = MAX(10, MIN(n, 4000));
+    double rate = f.processingFormat.sampleRate;
     AVAudioFramePosition total = f.length;
+    AVAudioFramePosition start = MAX(0, MIN((AVAudioFramePosition)(fromSec * rate), total));
+    AVAudioFramePosition end = toSec > 0 ? MIN(total, (AVAudioFramePosition)(toSec * rate)) : total;
+    if (end <= start) { start = 0; end = total; } // invalid range: fall back to the whole file
+    AVAudioFramePosition rangeLen = end - start;
+    if (start > 0) f.framePosition = start;
     AVAudioPCMBuffer *buf = [[AVAudioPCMBuffer alloc] initWithPCMFormat:f.processingFormat frameCapacity:65536];
     float *mx = calloc(n, sizeof(float));
-    AVAudioFramePosition pos = 0;
-    while (pos < total) {
-        if (![f readIntoBuffer:buf frameCount:65536 error:&e] || buf.frameLength == 0) break;
+    AVAudioFramePosition pos = start;
+    while (pos < end) {
+        AVAudioFrameCount want = (AVAudioFrameCount)MIN((AVAudioFramePosition)65536, end - pos);
+        if (![f readIntoBuffer:buf frameCount:want error:&e] || buf.frameLength == 0) break;
         for (AVAudioChannelCount ch = 0; ch < buf.format.channelCount; ch++) {
             const float *d = buf.floatChannelData[ch];
             for (AVAudioFrameCount i = 0; i < buf.frameLength; i++) {
-                int idx = (int)(((pos + i) * (int64_t)n) / total);
+                int idx = (int)(((pos + i - start) * (int64_t)n) / rangeLen);
                 if (idx >= n) idx = n - 1;
                 float v = fabsf(d[i]);
                 if (v > mx[idx]) mx[idx] = v;
@@ -551,7 +560,8 @@ static NSDictionary *computePeaks(NSString *path, int n, id req) {
     NSMutableArray *peaks = [NSMutableArray arrayWithCapacity:n];
     for (int i = 0; i < n; i++) [peaks addObject:@(roundf(MIN(mx[i], 1.0f) * 1000) / 1000)];
     free(mx);
-    return @{ @"evt": @"peaks", @"req": req, @"duration": @((double)total / f.processingFormat.sampleRate), @"peaks": peaks };
+    return @{ @"evt": @"peaks", @"req": req, @"duration": @((double)total / rate),
+              @"from": @((double)start / rate), @"to": @((double)end / rate), @"peaks": peaks };
 }
 
 #pragma mark - Controller
@@ -647,14 +657,15 @@ static void handle(NSString *line) {
     else if ([cmd isEqualToString:@"cutAll"]) for (SAInstance *i in instances.allValues) [i cut];
     else if ([cmd isEqualToString:@"peaks"] && c[@"req"] && [c[@"file"] isKindOfClass:[NSString class]]) {
         NSString *file = c[@"file"]; id req = c[@"req"]; int n = (int)num(c, @"n", 600);
-        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ emit(computePeaks(file, n, req)); });
+        double from = num(c, @"from", 0), to = num(c, @"to", 0);
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{ emit(computePeaks(file, n, req, from, to)); });
     }
     else if ([cmd isEqualToString:@"preload"] && [c[@"file"] isKindOfClass:[NSString class]]) {
         // reads the whole file through once, purely to warm the OS file cache before Play actually needs it;
         // computePeaks() already does exactly that read, its actual result just goes unused here
         NSString *file = c[@"file"];
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-            computePeaks(file, 10, @0);
+            computePeaks(file, 10, @0, 0, 0);
             emit(@{ @"evt": @"preloaded", @"file": file });
         });
     }

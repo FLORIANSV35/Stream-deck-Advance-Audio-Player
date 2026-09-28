@@ -316,12 +316,16 @@ export class PlayAction extends SingletonAction<PlaySettings> {
     if (isGroupsEvent(event)) {
       await sendGroups(event, reply);
     } else if (event === "getPeaks") {
-      const { file, track } = payload as { file?: string; track?: number };
+      const { file, track, n, from, to, zoomReq } = payload as {
+        file?: string; track?: number; n?: number; from?: number; to?: number; zoomReq?: number;
+      };
       const path = resolvePath(file);
-      const result = path ? await this.#peaks(path) : undefined;
+      const result = path ? await this.#peaks(path, n || 600, from || 0, to || 0) : undefined;
       await reply({
-        event: "peaks", track: track ?? 0, file: file ?? "",
-        ...(result ? { duration: result.duration, peaks: result.peaks } : { error: path ? "Unreadable file" : "File not found" }),
+        event: "peaks", track: track ?? 0, file: file ?? "", ...(zoomReq !== undefined ? { zoomReq } : {}),
+        ...(result
+          ? { duration: result.duration, from: result.from, to: result.to, peaks: result.peaks }
+          : { error: path ? "Unreadable file" : "File not found" }),
       });
     } else if (event === "getOutputs") {
       await reply({ event, items: outputItems(await engine.devices()) });
@@ -377,11 +381,15 @@ export class PlayAction extends SingletonAction<PlaySettings> {
 
   #peakCache = new Map<string, PeaksResult>();
 
-  async #peaks(path: string): Promise<PeaksResult | undefined> {
+  /** Whole-file requests (the common case: opening a track) are cached by file; a zoomed-in re-fetch (a specific
+   * `from`/`to` range) always goes straight to the engine, since the view keeps changing as the user zooms/pans
+   * and caching every intermediate range would just grow unbounded for no reuse. */
+  async #peaks(path: string, n = 600, from = 0, to = 0): Promise<PeaksResult | undefined> {
+    if (from > 0 || to > 0) return engine.peaks(path, n, from, to);
     const key = `${path}:${statSync(path).mtimeMs}`;
     let r = this.#peakCache.get(key);
     if (!r) {
-      r = await engine.peaks(path);
+      r = await engine.peaks(path, n);
       if (r) this.#peakCache.set(key, r);
     }
     return r;

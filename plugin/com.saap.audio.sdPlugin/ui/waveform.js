@@ -51,7 +51,11 @@
       viewStart: 0, viewEnd: 0,
       // live playback position, pushed by the plugin while this track is playing (see PlayAction#pushPosition)
       playing: false, pos: 0,
+      // higher-resolution peaks re-fetched for the current zoomed-in view (see scheduleZoomFetch); null until
+      // the first zoom settles, and cleared whenever the view no longer matches what was fetched
+      zoomPeaks: null, zoomFrom: 0, zoomTo: 0,
     };
+    let zoomGen = 0, zoomTimer = null;
 
     // no debounce: settings are saved when the handle is released
     const [getFile] = useSettings(key("file", n), (v) => setFile(v), 0);
@@ -110,17 +114,24 @@
         return;
       }
       if (p.event !== "peaks" || p.track !== n || p.file !== st.file) return;
+      if (p.zoomReq !== undefined) {
+        // a zoomed-in re-fetch: apply only if it's still the latest one (the user may have zoomed/panned again
+        // since this request went out) and drop it silently on error (the coarse array stays as a fallback)
+        if (p.zoomReq === zoomGen && !p.error) { st.zoomPeaks = p.peaks; st.zoomFrom = p.from; st.zoomTo = p.to; draw(); }
+        return;
+      }
       if (p.error) { st.peaks = null; st.msg = p.error; }
-      else { st.peaks = p.peaks; st.duration = p.duration; st.msg = ""; st.viewStart = 0; st.viewEnd = p.duration; }
+      else { st.peaks = p.peaks; st.duration = p.duration; st.msg = ""; st.viewStart = 0; st.viewEnd = p.duration; st.zoomPeaks = null; }
       draw();
     });
 
     function setFile(f) {
       f = f || "";
       if (f === st.file && (st.peaks || !f)) return;
-      st.file = f; st.peaks = null; st.duration = 0;
+      st.file = f; st.peaks = null; st.duration = 0; st.zoomPeaks = null;
       st.msg = f ? "Analyzing file…" : "Choose a file";
       clearInterval(peaksRetry);
+      clearTimeout(zoomTimer);
       if (f) {
         const ask = () => sd.send("sendToPlugin", { event: "getPeaks", file: f, track: n });
         ask();
@@ -152,6 +163,7 @@
       st.viewStart = start;
       st.viewEnd = start + width;
       draw();
+      scheduleZoomFetch();
     }
     const zoomBy = (factor, centerT) => zoomTo(viewLen() * factor, centerT ?? (st.viewStart + st.viewEnd) / 2);
     const panTo = (start) => {
@@ -159,7 +171,21 @@
       st.viewStart = Math.max(0, Math.min(st.duration - width, start));
       st.viewEnd = st.viewStart + width;
       draw();
+      scheduleZoomFetch();
     };
+
+    // re-request peaks scoped to the current view once zooming/panning settles, at a resolution matching the
+    // canvas's actual pixel width — the coarse 600-point array (spanning the whole file) is otherwise all a
+    // zoomed-in view has to work with, so bars just get wider instead of showing real extra detail
+    function scheduleZoomFetch() {
+      clearTimeout(zoomTimer);
+      if (viewLen() >= st.duration - 0.01 || !st.file) return; // not meaningfully zoomed in: the coarse array is enough
+      zoomTimer = setTimeout(() => {
+        const req = ++zoomGen;
+        const resolution = Math.max(100, Math.min(4000, Math.round((canvas.clientWidth || 600) * (window.devicePixelRatio || 1))));
+        sd.send("sendToPlugin", { event: "getPeaks", file: st.file, track: n, n: resolution, from: st.viewStart, to: st.viewEnd, zoomReq: req });
+      }, 200);
+    }
 
     function draw() {
       const dpr = window.devicePixelRatio || 1;
@@ -177,16 +203,20 @@
       const a = xOf(Math.min(st.tin, st.duration)), b = xOf(outTime());
       const on = ctx.createLinearGradient(0, 0, 0, h);
       on.addColorStop(0, "#5eead4"); on.addColorStop(1, "#22c55e");
-      // each bin covers a fixed slice of the file's duration; zoomed in, that slice maps to a wider (or
-      // off-screen) span of pixels instead of the whole array always spanning the full canvas width
-      const binDur = st.duration / st.peaks.length;
-      const first = Math.max(0, Math.floor(st.viewStart / binDur) - 1);
-      const last = Math.min(st.peaks.length - 1, Math.ceil(st.viewEnd / binDur) + 1);
+      // each bin covers a fixed slice of time; zoomed in, that slice maps to a wider (or off-screen) span of
+      // pixels instead of the whole array always spanning the full canvas width. Prefer the finer zoom-fetched
+      // array over the coarse whole-file one when it actually covers the current view.
+      const useZoom = st.zoomPeaks && st.zoomPeaks.length && st.viewStart >= st.zoomFrom - 0.001 && st.viewEnd <= st.zoomTo + 0.001;
+      const src = useZoom ? st.zoomPeaks : st.peaks;
+      const srcFrom = useZoom ? st.zoomFrom : 0;
+      const binDur = (useZoom ? st.zoomTo - st.zoomFrom : st.duration) / src.length;
+      const first = Math.max(0, Math.floor((st.viewStart - srcFrom) / binDur) - 1);
+      const last = Math.min(src.length - 1, Math.ceil((st.viewEnd - srcFrom) / binDur) + 1);
       for (let i = first; i <= last; i++) {
-        const x = xOf(i * binDur), xEnd = xOf((i + 1) * binDur);
+        const x = xOf(srcFrom + i * binDur), xEnd = xOf(srcFrom + (i + 1) * binDur);
         const bw = Math.max(1, xEnd - x);
         if (xEnd < 0 || x > w) continue;
-        const amp = Math.max(2, Math.pow(st.peaks[i], 0.8) * (h - 14));
+        const amp = Math.max(2, Math.pow(src[i], 0.8) * (h - 14));
         ctx.fillStyle = xEnd >= a && x <= b ? on : "#343946";
         ctx.beginPath();
         ctx.roundRect(x, (h - amp) / 2, Math.max(1.2, bw - 0.6), amp, 1);
