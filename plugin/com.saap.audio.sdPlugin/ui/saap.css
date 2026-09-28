@@ -45,23 +45,18 @@ h2.section::after { content: ""; flex: 1; height: 1px; background: #22262e; }
 .card:not(.slave):not(.plain) .tag { color: #5eead4; border-color: #1f4d43; }
 .card.slave .tag { color: #93c5fd; border-color: #22406e; }
 
-.wave { position: relative; }
-.wave canvas { display: block; width: 100%; height: 84px; border-radius: 10px; background: #0f1115; border: 1px solid #22262e;
-  touch-action: none; cursor: ew-resize; }
+/* canvas + zoom/position controls form one seamless block: the controls are a thin strip directly below the
+ * drawing area (not overlaid on it), so they never cover any part of the waveform itself */
+.wave { border-radius: 10px; background: #0f1115; border: 1px solid #22262e; overflow: hidden; }
+.wave canvas { display: block; width: 100%; height: 84px; touch-action: none; cursor: ew-resize; }
 .wave-info { min-height: 15px; margin-top: 6px; font-size: 11px; color: #8b93a3; font-variant-numeric: tabular-nums; }
 
-/* zoom controls, overlaid on the waveform's top-right corner */
-.wave-zoom { position: absolute; top: 6px; right: 6px; display: flex; gap: 2px; }
-.wave-zoom button { width: 20px; height: 20px; padding: 0; border: 1px solid #2f3540; border-radius: 5px;
-  background: rgba(20,22,26,.85); color: #cfd4de; font: inherit; font-size: 12px; font-weight: 700; line-height: 1; cursor: pointer; }
-.wave-zoom .wz-fit { width: auto; padding: 0 6px; font-size: 9px; letter-spacing: .04em; }
-.wave-zoom button:hover { background: #2b303b; color: #eceef2; }
-
-/* pan scrollbar, shown only once zoomed in */
-.wave-scroll { position: relative; height: 5px; margin-top: 4px; border-radius: 3px; background: #1c1f26; }
-.wave-scroll[hidden] { display: none; }
-.wave-thumb { position: absolute; top: 0; height: 100%; min-width: 16px; border-radius: 3px; background: #3b4250; cursor: grab; }
-.wave-thumb:hover { background: #4a5264; }
+.wave-controls { display: flex; align-items: center; gap: 6px; padding: 4px 8px; background: #14161a; border-top: 1px solid #22262e; }
+.wave-controls input[type="range"] { flex: 1; height: 4px; margin: 0; accent-color: #22c55e; }
+.wave-controls input[type="range"]:disabled { opacity: .35; }
+.wave-controls .wz-fit { flex: none; padding: 2px 8px; border: 1px solid #2f3540; border-radius: 5px;
+  background: #1c1f26; color: #cfd4de; font: inherit; font-size: 9px; font-weight: 700; letter-spacing: .04em; cursor: pointer; }
+.wave-controls .wz-fit:hover { background: #2b303b; color: #eceef2; }
 
 sdpi-note { display: block; max-width: 100%; margin: 10px 14px 0; padding: 9px 12px; border-left: 3px solid #22c55e; border-radius: 0 8px 8px 0;
   background: #1a1d23; color: #8f97a6; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
