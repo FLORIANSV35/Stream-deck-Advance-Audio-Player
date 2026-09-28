@@ -13,6 +13,14 @@ now running directly inside Companion. No Stream Deck required.
    fades, trim and loop points there — the waveform, drag-and-drop, and the **Browse…** button all work exactly
    like the Stream Deck plugin's own editor.
 3. On a button, add the **Play Sound** action and type that same id into its **Sound** field. Press the button.
+   (Or drag in the **Play Sound** preset from this connection's Presets tab — same dark/green/amber look as the
+   Stream Deck plugin's own key, already wired with the is-playing/is-paused feedbacks, just fill in the Sound id.)
+
+## Presets
+
+Every action below has a matching preset (Presets tab, under this connection) styled like the plugin's own keys:
+dark idle background, green while a sound plays, amber while paused, blue for loop/skip controls, coral for
+Stop All. Drag one onto a button and fill in its Sound/Group id.
 
 ## Why a separate web page?
 

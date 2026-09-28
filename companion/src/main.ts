@@ -10,6 +10,7 @@ import { Engine } from "./engine.js";
 import { getFeedbackDefinitions } from "./feedbacks.js";
 import { mixer } from "./mixer.js";
 import { Player } from "./player.js";
+import { getPresetDefinitions } from "./presets.js";
 import { Store } from "./store.js";
 
 /**
@@ -59,6 +60,7 @@ class SaapAudioInstance extends InstanceBase<SaapConfig> {
 
     this.setActionDefinitions(getActionDefinitions(player, store, editor));
     this.setFeedbackDefinitions(getFeedbackDefinitions(player));
+    this.setPresetDefinitions(getPresetDefinitions());
 
     this.updateStatus(InstanceStatus.Connecting, "Starting the audio engine…");
     engine.start();
