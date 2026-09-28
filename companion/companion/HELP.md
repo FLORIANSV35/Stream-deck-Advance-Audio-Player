@@ -42,8 +42,9 @@ which sound (by id) to play, stop, pause, etc. One upside: several buttons can s
 - **Pause / Resume** — targets one sound by id.
 - **Stop All**, **Skip forward / back**, **Exit Loop** — target a group (set per-sound in the web editor), or
   every sound when left blank.
-- **Set Loop Point** — while a sound is playing, captures its current position as that sound's loop-in or
-  loop-out point (same as the Stream Deck plugin's own "Set Loop Point" key).
+- **Set Loop Point** — captures the current position as the loop-in or loop-out point of one sound by id, or of
+  every sound currently playing when left blank (each at its own position) — same as the Stream Deck plugin's own
+  "Set Loop Point" key.
 - **Set Volume (master / group)** — set, nudge, or mute the master level or a named group's level.
 
 ## Feedbacks

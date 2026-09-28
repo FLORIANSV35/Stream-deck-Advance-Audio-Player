@@ -51,6 +51,7 @@ export class EditorServer {
     this.#uploadsDir = uploadsDir;
     player.on("position", (soundId, track, playing, pos, dur) => this.#broadcast({ event: "position", soundId, track, playing, pos, dur }));
     player.on("changed", (soundId) => this.#broadcast({ event: "changed", soundId, playing: player.isPlaying(soundId) }));
+    player.on("settingsChanged", (soundId, settings) => this.#broadcast({ event: "settings", soundId, settings }));
     mixer.on("change", (target) => this.#broadcast({ event: "mixerChanged", target, level: mixer.level(target) }));
   }
 
@@ -148,8 +149,9 @@ export class EditorServer {
       const id = decodeURIComponent(path[1]);
       const settings = JSON.parse((await this.#body(req)).toString("utf8") || "{}") as PlaySettings;
       this.#store.setSound(id, settings);
+      // settingsChanged() itself notifies every connected editor page (see the player.on("settingsChanged")
+      // listener above) — including this same page, which just re-applies the values it already has
       this.#player.settingsChanged(id, settings);
-      this.#broadcast({ event: "settings", soundId: id, settings });
       return this.#json(res, 200, { ok: true });
     }
     if (path[0] === "sounds" && path.length === 2 && req.method === "DELETE") {

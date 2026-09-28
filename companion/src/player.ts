@@ -12,6 +12,9 @@ type PlayerEvents = {
   changed: [soundId: string];
   /** live position, ~10×/s, forwarded to the web editor's waveform cursor */
   position: [soundId: string, track: number, playing: boolean, pos: number, dur: number];
+  /** a sound's settings were written from somewhere other than the web editor itself (a Companion action, e.g.
+   * Set Loop Point) — the editor needs this pushed to it too, or a page already open on that sound goes stale */
+  settingsChanged: [soundId: string, settings: PlaySettings];
 };
 
 /** The tracks of a sound have the id "<soundId>#<n>" on the engine side (one entry per output). */
@@ -214,8 +217,9 @@ export class Player extends EventEmitter<PlayerEvents> {
     }
   }
 
-  /** Called after a sound's settings are saved (web editor): re-warm any newly-referenced files, and push the
-   * new volume/group to any of its tracks already playing. */
+  /** Called after a sound's settings are saved — from the web editor itself, or from a Companion action like Set
+   * Loop Point: re-warms any newly-referenced files, pushes the new volume/group to any of its tracks already
+   * playing, and notifies the web editor (any page open on this sound needs to pick up the change too). */
   settingsChanged(soundId: string, s: PlaySettings): void {
     mixer.addGroup(s.group);
     for (const tok of this.#tokensOf(s)) if (!this.#everWarmed.has(tok)) this.#request(tok);
@@ -225,5 +229,6 @@ export class Player extends EventEmitter<PlayerEvents> {
       this.#engine.volume(p.id, gainFor(p.settings));
     }
     this.emit("changed", soundId);
+    this.emit("settingsChanged", soundId, s);
   }
 }

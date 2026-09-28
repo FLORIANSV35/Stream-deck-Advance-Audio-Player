@@ -127,7 +127,7 @@ export function getActionDefinitions(player: Player, store: Store, editor: Edito
     "set-loop-point": {
       name: "Set Loop Point",
       options: [
-        soundIdField,
+        { ...soundIdField, tooltip: "Leave blank to mark the point on every sound currently playing. " + soundIdField.tooltip },
         {
           id: "which", type: "dropdown", label: "Which point", default: "in",
           choices: [{ id: "in", label: "Loop in" }, { id: "out", label: "Loop out" }],
@@ -137,14 +137,15 @@ export function getActionDefinitions(player: Player, store: Store, editor: Edito
       learn: soundIdLearn,
       callback: async (action) => {
         const soundId = String(action.options.soundId ?? "").trim();
-        if (!soundId) return;
-        const track1 = [...playbacks.values()].find((p) => keyOf(p.id) === soundId && trackOf(p.id) === 1);
-        if (!track1) return;
-        const s = store.sound(soundId);
-        const field = action.options.which === "out" ? "loopOut" : "loopIn";
-        const updated = { ...s, [field]: track1.pos.toFixed(2), loop: true };
-        store.setSound(soundId, updated);
-        player.settingsChanged(soundId, updated);
+        const which = action.options.which === "out" ? "loopOut" : "loopIn";
+        const targets = soundId ? [soundId] : [...new Set([...playbacks.values()].map((p) => keyOf(p.id)))];
+        for (const id of targets) {
+          const track1 = [...playbacks.values()].find((p) => keyOf(p.id) === id && trackOf(p.id) === 1);
+          if (!track1) continue;
+          const updated = { ...store.sound(id), [which]: track1.pos.toFixed(2), loop: true };
+          store.setSound(id, updated);
+          player.settingsChanged(id, updated);
+        }
       },
     },
     "set-volume": {

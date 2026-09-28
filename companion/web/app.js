@@ -336,6 +336,12 @@ function connectWS() {
       }
     } else if (m.event === "changed") {
       soundlistEl.querySelector(`[data-id="${CSS.escape(m.soundId)}"]`)?.classList.toggle("playing", !!m.playing);
+    } else if (m.event === "settings") {
+      // a sound's settings changed from somewhere other than (or in addition to) this page — a Companion action
+      // like Set Loop Point, or this same edit finishing its round trip — refresh if it's the one shown right now
+      sounds[m.soundId] = m.settings;
+      if (m.soundId === selectedId) renderSound(m.soundId);
+      renderSidebar();
     }
   };
   ws.onclose = () => setTimeout(connectWS, 2000);
