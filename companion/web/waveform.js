@@ -76,6 +76,7 @@ export function createWaveform(canvas, infoEl, track, opts) {
       ctx.fillStyle = "#6b7383"; ctx.font = "12px -apple-system, sans-serif"; ctx.textAlign = "center";
       ctx.fillText(track.msg || "Choose a file", w / 2, h / 2 + 4);
       if (infoEl) infoEl.textContent = "";
+      syncSliders();
       return;
     }
     const a = xOf(Math.min(track.tin, track.duration)), b = xOf(outTime());
@@ -126,6 +127,7 @@ export function createWaveform(canvas, infoEl, track, opts) {
       const zoomInfo = zoomed ? ` · Zoomed ${fmt(track.viewStart)}–${fmt(track.viewEnd)}` : "";
       infoEl.textContent = `Start ${fmt(track.tin)} · End ${fmt(outTime())} · Length ${fmt(outTime() - track.tin)} / ${fmt(track.duration)}${loopInfo}${zoomInfo}`;
     }
+    syncSliders();
   }
 
   let drag = null;
@@ -184,9 +186,8 @@ export function createWaveform(canvas, infoEl, track, opts) {
     posSlider.disabled = !track.peaks || !zoomed;
     posSlider.value = track.peaks ? panPctFromStart(track.viewStart) : 0;
   }
-  const origDraw = draw;
   return {
-    draw: () => { origDraw(); syncSliders(); },
+    draw,
     zoomFit: () => { if (track.peaks) zoomTo(track.duration, track.duration / 2); },
     async setFile(file, fetchWholeFile) {
       track.file = file; track.peaks = null; track.duration = 0; track.zoomPeaks = null;
