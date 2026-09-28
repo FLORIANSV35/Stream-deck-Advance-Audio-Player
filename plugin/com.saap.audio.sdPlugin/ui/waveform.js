@@ -272,15 +272,15 @@
       if (st.loopOn && y < LOOP_BAND) {
         if (st.loopLinked) return; // read-only: loop points come from track 1 here
         const dIn = Math.abs(x - xOf(loopInEff())), dOut = Math.abs(x - xOf(loopOutEff()));
+        if (Math.min(dIn, dOut) > GRIP) return; // not actually grabbing a handle: ignore the click
         drag = dIn <= dOut ? "loopIn" : "loopOut";
-        if (Math.min(dIn, dOut) > GRIP) move(x); // click away from a handle: moves the nearest one
         canvas.setPointerCapture(e.pointerId);
         return;
       }
       if (st.trimLinked) return; // read-only: trim comes from track 1 here
       const dIn = Math.abs(x - xOf(st.tin)), dOut = Math.abs(x - xOf(outTime()));
+      if (Math.min(dIn, dOut) > GRIP) return; // not actually grabbing a handle: ignore the click
       drag = dIn <= dOut ? "in" : "out";
-      if (Math.min(dIn, dOut) > GRIP) move(x);
       canvas.setPointerCapture(e.pointerId);
     });
     canvas.addEventListener("pointermove", (e) => { if (drag) move(posX(e)); });
