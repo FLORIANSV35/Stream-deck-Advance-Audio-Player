@@ -166,6 +166,14 @@ export class Player extends EventEmitter<PlayerEvents> {
     return tracksOf(soundId).some((p) => p.state === "playing");
   }
 
+  /** Track 1's own position/duration/state — what a button's live countdown is based on, same as the Stream
+   * Deck plugin's own key rendering (plugin/src/render.ts). */
+  timeInfo(soundId: string): { pos: number; dur: number; paused: boolean; looping: boolean } | undefined {
+    const tracks = tracksOf(soundId);
+    const p = tracks.find((t) => trackOf(t.id) === 1) ?? tracks[0];
+    return p ? { pos: p.pos, dur: p.dur, paused: p.state === "paused", looping: p.looping } : undefined;
+  }
+
   /** Re-applies the effective volume (sound × group × master) to every running playback of a sound, or all of
    * them (used after a settings edit, and whenever the mixer changes). */
   applyGains(soundId?: string): void {

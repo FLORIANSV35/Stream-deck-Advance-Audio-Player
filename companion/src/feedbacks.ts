@@ -18,8 +18,36 @@ const soundIdLearn = (feedback: CompanionFeedbackInfo) => {
   return soundId ? { ...feedback.options, soundId } : undefined;
 };
 
+/** m:ss, rounded up — same format as the Stream Deck plugin's own key (plugin/src/render.ts's fmtTime). */
+const fmtTime = (sec: number): string => {
+  const s = Math.max(0, Math.ceil(sec));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+};
+
 export function getFeedbackDefinitions(player: Player, store: Store): CompanionFeedbackDefinitions {
   return {
+    "sound-time": {
+      type: "advanced",
+      name: "Sound Title + Time (name, live countdown, PAUSE/LOOP)",
+      options: [
+        soundIdField,
+        {
+          id: "mode", type: "dropdown", label: "Show", default: "elapsed",
+          choices: [{ id: "elapsed", label: "Elapsed" }, { id: "remaining", label: "Remaining" }],
+        },
+      ],
+      learn: soundIdLearn,
+      callback: (feedback) => {
+        const id = String(feedback.options.soundId ?? "").trim();
+        if (!id) return {};
+        const label = store.sound(id).label || id;
+        const info = player.timeInfo(id);
+        if (!info) return { text: label };
+        const t = feedback.options.mode === "remaining" ? Math.max(0, info.dur - info.pos) : info.pos;
+        const state = info.paused ? "PAUSE" : info.looping ? "LOOP" : "";
+        return { text: state ? `${label}\n${fmtTime(t)}\n${state}` : `${label}\n${fmtTime(t)}` };
+      },
+    },
     "sound-title": {
       type: "advanced",
       name: "Sound Title (shows the sound's label on the button)",

@@ -52,7 +52,9 @@ class SaapAudioInstance extends InstanceBase<SaapConfig> {
 
     const player = new Player(engine, store, (msg) => this.log("info", msg));
     this.#player = player;
-    player.on("changed", () => this.checkFeedbacks("is-playing", "is-paused", "sound-title"));
+    player.on("changed", () => this.checkFeedbacks("is-playing", "is-paused", "sound-title", "sound-time"));
+    // track 1's ~10×/s position ticks (see Player#timeInfo) drive the live countdown on "Sound Title + Time"
+    player.on("position", (_soundId, track) => { if (track === 1) this.checkFeedbacks("sound-time"); });
     mixer.on("change", () => player.applyGains());
 
     const editor = new EditorServer(engine, store, player, join(packageRoot, "web"), join(dataDir, "uploads"));
