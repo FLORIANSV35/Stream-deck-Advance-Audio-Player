@@ -222,8 +222,13 @@ impl Engine {
             "peaks" => {
                 if let (Some(req), Some(file)) = (c.get("req").cloned(), c.get("file").and_then(Value::as_str)) {
                     let (file, n) = (file.to_string(), num(&c, "n", 600.0) as usize);
+                    let (from, to) = (num(&c, "from", 0.0), num(&c, "to", 0.0));
                     std::thread::spawn(move || match audio::load(&file) {
-                        Ok(d) => emit(json!({"evt": "peaks", "req": req, "duration": d.frames as f64 / d.rate, "peaks": audio::peaks(&d, n)})),
+                        Ok(d) => {
+                            let duration = d.frames as f64 / d.rate;
+                            let (from, to) = if to > from { (from, to.min(duration)) } else { (0.0, duration) };
+                            emit(json!({"evt": "peaks", "req": req, "duration": duration, "from": from, "to": to, "peaks": audio::peaks_range(&d, n, from, to)}));
+                        }
                         Err(_) => emit(json!({"evt": "peaks", "req": req, "error": "Unreadable file"})),
                     });
                 }

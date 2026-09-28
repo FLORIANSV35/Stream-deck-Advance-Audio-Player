@@ -13,6 +13,9 @@ export interface OutputDevice {
 
 export interface PeaksResult {
   duration: number;
+  /** actual range these peaks cover (may differ from a requested `from`/`to` if it was invalid/out of range) */
+  from: number;
+  to: number;
   peaks: number[];
 }
 
@@ -103,7 +106,7 @@ class Engine extends EventEmitter<EngineEvents> {
       case "peaks": {
         const done = this.#peakWaiters.get(m.req);
         this.#peakWaiters.delete(m.req);
-        done?.(m.error ? undefined : { duration: m.duration, peaks: m.peaks });
+        done?.(m.error ? undefined : { duration: m.duration, from: m.from, to: m.to, peaks: m.peaks });
         break;
       }
       case "started":
@@ -138,13 +141,14 @@ class Engine extends EventEmitter<EngineEvents> {
     return this.#devices;
   }
 
-  /** Waveform of a file (n peaks); undefined if unreadable or if the engine does not answer. */
-  peaks(file: string, n = 600): Promise<PeaksResult | undefined> {
+  /** Waveform of a file (n peaks over [from, to), or the whole file if omitted); undefined if unreadable or if
+   * the engine does not answer. */
+  peaks(file: string, n = 600, from = 0, to = 0): Promise<PeaksResult | undefined> {
     const req = ++this.#peakReq;
     return new Promise((resolve) => {
       const timer = setTimeout(() => { this.#peakWaiters.delete(req); resolve(undefined); }, 60_000);
       this.#peakWaiters.set(req, (r) => { clearTimeout(timer); resolve(r); });
-      this.#send({ cmd: "peaks", req, file, n });
+      this.#send({ cmd: "peaks", req, file, n, from, to });
     });
   }
 

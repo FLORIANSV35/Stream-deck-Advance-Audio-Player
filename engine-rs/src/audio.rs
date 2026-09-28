@@ -107,12 +107,23 @@ fn decode(path: &str) -> Result<AudioData, String> {
     Ok(AudioData { samples, channels, rate, frames })
 }
 
-/// Peak (max absolute value, all channels) of each of the `n` slices of the file.
-pub fn peaks(d: &AudioData, n: usize) -> Vec<f32> {
+/// Peak (max absolute value, all channels) of each of the `n` slices of [from_sec, to_sec) (<= 0 = start/end
+/// of file). Lets the waveform re-request just the
+/// zoomed-in portion at a finer resolution instead of always covering the whole file at a fixed one. The whole
+/// file is already decoded in memory (see `load`), so slicing a range here is just index arithmetic.
+pub fn peaks_range(d: &AudioData, n: usize, from_sec: f64, to_sec: f64) -> Vec<f32> {
     let n = n.clamp(10, 4000);
+    let mut from = ((from_sec * d.rate) as usize).min(d.frames);
+    let mut to = if to_sec > 0.0 { ((to_sec * d.rate) as usize).min(d.frames) } else { d.frames };
+    if to <= from {
+        from = 0;
+        to = d.frames; // invalid range: fall back to the whole file
+    }
+    let range_len = (to - from) as u64;
     let mut out = vec![0f32; n];
-    for (f, frame) in d.samples.chunks_exact(d.channels).enumerate() {
-        let idx = ((f as u64 * n as u64) / d.frames as u64) as usize;
+    let slice = &d.samples[from * d.channels..to * d.channels];
+    for (f, frame) in slice.chunks_exact(d.channels).enumerate() {
+        let idx = ((f as u64 * n as u64) / range_len) as usize;
         let idx = idx.min(n - 1);
         for s in frame {
             let v = s.abs();
