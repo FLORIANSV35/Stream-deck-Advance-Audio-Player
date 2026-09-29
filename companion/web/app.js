@@ -87,6 +87,11 @@ function fieldsOfTrack(s, n) {
 async function renderSound(id) {
   const s = sounds[id] ?? {};
   if (!outputsCache) outputsCache = await api("api/outputs");
+  // carried over into the freshly rendered tracks below, so a settings push triggered by this same sound (a
+  // live-synced edit from another tab, or a Companion action like Set Loop Point) doesn't reset the waveform's
+  // zoom or collapse a section the user had opened, just because *something* about the sound changed
+  const prevOpen = [...mainEl.querySelectorAll(".card")].map((d) => d.open);
+  const prevTracks = currentTracks;
   mainEl.innerHTML = "";
   currentTracks = [];
   waveforms = [];
@@ -135,14 +140,14 @@ async function renderSound(id) {
     el.addEventListener("change", () => { s[flag] = el.checked; scheduleSave(id, s); });
   }
 
-  for (let n = 1; n <= MAX_TRACKS; n++) renderTrack(id, s, n);
+  for (let n = 1; n <= MAX_TRACKS; n++) renderTrack(id, s, n, prevTracks[n], prevOpen[n - 1]);
 }
 
-function renderTrack(soundId, s, n) {
+function renderTrack(soundId, s, n, prevTrack, prevOpen) {
   const f = fieldsOfTrack(s, n);
   const details = document.createElement("details");
   details.className = "card";
-  if (n === 1) details.open = true;
+  details.open = prevOpen !== undefined ? prevOpen : n === 1;
   details.innerHTML = `
     <summary><span class="badge">${n}</span><span class="title">Track ${n}</span></summary>
     <div class="body">
@@ -207,6 +212,17 @@ function renderTrack(soundId, s, n) {
     loopOn: f.loop, lin: num(f.loopIn), lout: num(f.loopOut),
     viewStart: 0, viewEnd: 0, playing: false, pos: 0,
   };
+  // same file as before this re-render: keep its already-fetched peaks and current zoom/pan/live-position
+  // instead of re-fetching from scratch and snapping back to fully zoomed out
+  const sameFile = prevTrack && f.file && prevTrack.file === f.file;
+  if (sameFile) {
+    Object.assign(track, {
+      file: prevTrack.file, duration: prevTrack.duration, peaks: prevTrack.peaks, msg: prevTrack.msg,
+      zoomPeaks: prevTrack.zoomPeaks, zoomFrom: prevTrack.zoomFrom, zoomTo: prevTrack.zoomTo,
+      viewStart: prevTrack.viewStart, viewEnd: prevTrack.viewEnd,
+      playing: prevTrack.playing, pos: prevTrack.pos,
+    });
+  }
   currentTracks[n] = track;
 
   const fetchPeaks = (file, nres, from, to) =>
@@ -284,7 +300,8 @@ function renderTrack(soundId, s, n) {
     if (body.path) loadFile(body.path);
   });
 
-  if (f.file) wf.setFile(f.file, () => fetchPeaks(f.file, 600, 0, 0));
+  if (sameFile) wf.draw();
+  else if (f.file) wf.setFile(f.file, () => fetchPeaks(f.file, 600, 0, 0));
 }
 
 async function renderMixer() {
