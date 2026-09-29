@@ -110,9 +110,9 @@ async function renderSound(id) {
   rowfields.innerHTML = `
     <label class="field">Group<input class="f-group" placeholder="(none)" /></label>
     <label class="field">On press while playing<select class="f-mode">
-      <option value="restart">Restart</option>
       <option value="stop">Stop</option>
       <option value="pause">Pause/Resume</option>
+      <option value="restart">Restart</option>
     </select></label>
     <label class="field row"><input type="checkbox" class="f-stopOthers" /> Stop other sounds in this group first</label>`;
   mainEl.append(rowfields);
@@ -120,7 +120,7 @@ async function renderSound(id) {
   groupInput.value = s.group || "";
   groupInput.addEventListener("change", () => { s.group = groupInput.value; scheduleSave(id, s); });
   const modeSelect = rowfields.querySelector(".f-mode");
-  modeSelect.value = s.mode || "restart";
+  modeSelect.value = s.mode || "stop";
   modeSelect.addEventListener("change", () => { s.mode = modeSelect.value; scheduleSave(id, s); });
   const stopOthersInput = rowfields.querySelector(".f-stopOthers");
   stopOthersInput.checked = !!s.stopOthers;
