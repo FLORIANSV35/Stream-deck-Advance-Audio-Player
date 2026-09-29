@@ -38,7 +38,7 @@ has not yet been validated on real audio hardware: feedback is welcome. The plug
 
 Requirements: same as the plugin (macOS 12+ or Windows 10/11) plus Companion itself; no Stream Deck needed.
 
-## How it works
+## Using the Stream Deck plugin
 
 The plugin adds several kinds of key/dial to the **SAAP Audio** category. **Play Sound** is the actual player;
 everything else is a *control* that acts on sounds already started by a Play Sound key, rather than playing
@@ -70,7 +70,7 @@ anything itself.
   **Set Loop Point** to capture the current position live, so a loop can be tapped in by ear instead of by
   number.
 
-## Features
+### Stream Deck plugin: every action
 
 - **Play sound** (key):
   - up to 6 tracks per key, started together within a millisecond (mono or stereo files);
@@ -106,6 +106,53 @@ anything itself.
   **Install** (downloads the package and opens it — Stream Deck asks you to confirm) and **What's new**. It can be
   switched off in the panel's *Updates* section.
 - **Groups**: a free name per sound; "stop the group's other sounds on start" gives exclusive playback.
+
+## Using the Companion module
+
+Companion buttons only offer plain fields (text, number, checkbox, dropdown) — no waveform, no native file
+dialog. So all the rich setup lives on one local web page the module serves itself, and a button just references
+a sound there by an id you choose; several buttons can share the same id.
+
+1. Add the **SAAP Audio** connection. Its status shows a URL once it starts (`http://127.0.0.1:PORT/TOKEN/`) —
+   or add the **Open Sound Editor** action to any button and press it for one-click access instead.
+2. On that page, click **+ New sound**, give it an id (e.g. `applause`), and set up its file, output routing,
+   volume, fades, and trim/loop points — same waveform, same multi-output checkbox picker, drag-and-drop, and a
+   native **Browse…** dialog as the Stream Deck plugin's own large editor. A **Clear** button next to the file
+   field removes it and its trim/loop points without touching output/volume/fades.
+3. On a button, add the **Play Sound** action and type that same id into its **Sound** field — or drag in the
+   ready-made **Play Sound** preset (Presets tab), styled like the plugin's own key and already wired with live
+   feedbacks, and just fill in the Sound id.
+4. Adding a second action or feedback to that same button (Stop, a feedback, …)? Click its **Learn** button
+   instead of retyping the id — it copies whatever Sound id the button's other action(s) already use.
+
+### Companion module: every action
+
+- **Open Sound Editor**: opens the web editor in the default browser.
+- **Play Sound**: starts every track of a sound that has a file, all in sync. A second press while it's already
+  playing restarts, stops, or pauses/resumes it, per that sound's own "On press while playing" setting.
+- **Stop**: one sound by id, or every sound when left blank (same fade either way).
+- **Pause / Resume**: one sound by id.
+- **Stop All**, **Skip forward / back**, **Exit Loop**: target a group (set per-sound in the web editor), or
+  every sound when left blank.
+- **Set Loop Point**: captures the current position as the loop-in or loop-out point of one sound by id, or of
+  every sound currently playing when left blank (each at its own position).
+- **Set Volume (master / group)**: set, nudge, or mute the master level or a named group's level.
+
+### Companion module: feedbacks and presets
+
+- **Sound Title + Time**: the sound's name plus a live elapsed/remaining countdown and a PAUSE/LOOP indicator,
+  refreshed about 10×/s — the closest match to the plugin's own key. **Sound Title** alone is also available for
+  a plainer button, alongside separate **Sound is playing** / **Sound is paused** color feedbacks.
+- **Presets** (Presets tab): one ready-made button per action above, styled like the plugin's own keys — dark
+  idle, green while playing, amber while paused, blue for loop/skip, coral for Stop All. Drag one onto a button
+  and fill in a Sound or Group id.
+- **Update check**: the web editor shows a banner when a newer release is available (same GitHub check as the
+  plugin, once a day) — but since Companion can't self-install a module, it just links to the release page.
+
+Known limitations vs. the plugin: no native file picker inside Companion's own action fields (type or paste a
+path, or use the web editor's Browse…/drag-and-drop instead); macOS/Windows only, same as the plugin; the web
+editor only works from the machine Companion itself runs on. See [`companion/companion/HELP.md`](companion/companion/HELP.md)
+for the full detail on every action/feedback.
 
 ## Architecture
 
